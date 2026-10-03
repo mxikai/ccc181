@@ -40,8 +40,6 @@ My Git configuration uses my student ID number without the hyphen, as instructed
 | 22 | find-swearwords | `dagohoy_Kate_22.png` |
 | 23 | find-bug | `dagohoy_Kate_23.png` |
 
-> Add, remove, or update rows based on the exercises you completed.
-
 ## Folder Contents
 
 ```text
