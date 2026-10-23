@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket #{{ ticket.number }} · CleanQ{% endblock %}
+
+{% block content %}
+  <h2>Ticket #{{ ticket.number }}</h2>
+
+  <ul>
+    <li><strong>Customer:</strong> {{ ticket.name }}</li>
+    <li><strong>Mobile number:</strong> {{ ticket.phone }}</li>
+    <li><strong>Service:</strong> {{ ticket.service_name }}</li>
+    <li><strong>Kilos:</strong> {{ ticket.kilos }} kg</li>
+    <li><strong>Total:</strong> ₱{{ "%.2f"|format(ticket.total) }}
+        ({{ "Paid" if ticket.paid else "Unpaid" }})</li>
+    {% if ticket.notes %}<li><strong>Notes:</strong> {{ ticket.notes }}</li>{% endif %}
+    <li><strong>Estimated pickup:</strong>
+      {% if ticket.status in ["ready", "claimed"] %}
+        Ready for pickup
+      {% else %}
+        about {{ ticket.eta_hours|round|int }} hours after drop-off
+      {% endif %}
+    </li>
+  </ul>
+
+  <p>Progress:
+    {% for s in statuses %}
+      {% if s == ticket.status %}<strong>[{{ s }}]</strong>{% else %}{{ s }}{% endif %}
+      {% if not loop.last %} → {% endif %}
+    {% endfor %}
+  </p>
+
+  <p><a href="{{ url_for('index') }}">← Back to queue</a></p>
+{% endblock %}

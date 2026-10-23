@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Tickets in the queue</h2>
+
+  {% if tickets %}
+  <ul>
+    {% for t in tickets %}
+    <li><a href="{{ url_for('ticket', ticket_id=t.number) }}">Ticket #{{ t.number }}</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No active tickets right now.</p>
+  {% endif %}
+{% endblock %}
