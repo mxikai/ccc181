@@ -49,3 +49,52 @@ footer {
   color: #5A6272;
   padding: 2rem 0;
 }
+
+/* CleanQ colors: blue accent on a light blue-gray page, as in the wireframes */
+:root {
+  --bs-primary: #2563eb;
+  --bs-primary-rgb: 37, 99, 235;
+  --bs-link-color: #2563eb;
+  --bs-link-color-rgb: 37, 99, 235;
+  --bs-primary-bg-subtle: #e8f0fe;
+  --bs-primary-text-emphasis: #1e40af;
+}
+
+body { background-color: #f4f7fc; }
+
+.btn-primary {
+  --bs-btn-bg: #2563eb;
+  --bs-btn-border-color: #2563eb;
+  --bs-btn-hover-bg: #1d4ed8;
+  --bs-btn-hover-border-color: #1d4ed8;
+  --bs-btn-active-bg: #1e40af;
+  --bs-btn-active-border-color: #1e40af;
+  --bs-btn-disabled-bg: #2563eb;
+  --bs-btn-disabled-border-color: #2563eb;
+}
+
+/* Active menu item uses the brand blue */
+.navbar { --bs-navbar-active-color: #2563eb; }
+
+/* Small blue logo mark next to the app name */
+.brand-mark {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #2563eb;
+}
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+
+/* Ticket numbers and prices use a monospace font, like the wireframes */
+.ticket-number {
+  font-family: var(--bs-font-monospace);
+  font-weight: 600;
+}

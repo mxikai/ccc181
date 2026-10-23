@@ -1,15 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h2>Tickets in the queue</h2>
-
-  {% if tickets %}
-  <ul>
-    {% for t in tickets %}
-    <li><a href="{{ url_for('ticket', ticket_id=t.number) }}">Ticket #{{ t.number }}</a></li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p>No active tickets right now.</p>
-  {% endif %}
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6 text-center py-5">
+      <h1 class="display-5 fw-semibold">CleanQ</h1>
+      <p class="lead text-body-secondary">
+        Know when your laundry is ready without going back to the shop.
+        Enter your mobile number to see your ticket and estimated pickup time.
+      </p>
+      <a class="btn btn-primary btn-lg" href="{{ url_for('track') }}">Check my laundry</a>
+      <p class="mt-4 small">
+        <a href="{{ url_for('join_form') }}">Staff? Create a new order</a>
+      </p>
+    </div>
+  </div>
 {% endblock %}

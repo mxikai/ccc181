@@ -50,7 +50,7 @@ Kim drops off 5 kilos of laundry at the shop near her dorm before her 8 AM class
 
 ### Scenario
 
-It is mid-afternoon and the shop is full. A customer hands Mort a bag of laundry while another asks if her clothes are ready. Mort opens CleanQ on the counter phone, sees the list of ticket numbers, and taps ticket #3 to check its details. He sees that it is marked ready and paid, tells the customer right away, and moves on. When the next bag arrives, he logs it in a few taps instead of writing in the notebook.
+It is mid-afternoon and the shop is full. A customer hands Mort a bag of laundry while another asks if their clothes are ready. Mort opens CleanQ on the counter phone, sees the list of ticket numbers, and taps ticket #3 to check its details. He sees that it is marked ready and paid, tells the customer right away, and moves on. When the next bag arrives, he logs it in a few taps instead of writing in the notebook.
 
 ### Top tasks in the app
 
@@ -65,6 +65,6 @@ It is mid-afternoon and the shop is full. A customer hands Mort a bag of laundry
 ### What this means for my interface
 
 1. Because Mort is often interrupted and has busy hands, my interface must use large buttons and as few taps as possible for every task.
-2. Because she handles many orders at once, my interface must show only ticket numbers on the dashboard so the list is easy to scan, and put all other details one tap away.
+2. Because he handles many orders at once, my interface must show only ticket numbers on the dashboard so the list is easy to scan, and put all other details one tap away.
 3. Because he is not comfortable with complex software, my interface must use plain English labels and avoid long forms or hidden menus.
 4. Because customers keep asking if their laundry is ready, my interface must show each order's current stage clearly on the ticket page so she can answer in seconds.

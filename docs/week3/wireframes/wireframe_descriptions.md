@@ -29,24 +29,26 @@
 ### Frame 3: Customer Dashboard — Mobile
 - **Persona:** Kim Possible (Customer)
 - **Device:** Mobile / Phone Width
-- **Requirement IDs:** FR-01, FR-07, FR-08
+- **Requirement IDs:** FR-06, FR-07, FR-08
 - **Main Flow**: Open site -> Enter mobile number -> Tap "Find my tickets" -> See ticket status & pickup time
 - **Key Features:**
   - Shows Kim's active ticket number (`#1053`) in extra-large text right at the top so she sees her status instantly.
   - Summarizes service type, current processing stage, and estimated pickup time into high-contrast stacked cards.
   - Displays full shop queue grid with ticket numbers only, visually highlighting Kim's active ticket in blue.
+  - **Note:** This Dashboard has two views. Customers (Kim) see only their own ticket. Staff (Mort) see the full grid of ticket numbers, and each number opens Manage Queue (FR-01).
 
 ---
 
 ### Frame 4: Customer Dashboard — Desktop
 - **Persona:** Kim Possible (Customer)
 - **Device:** Desktop / Laptop Width
-- **Requirement IDs:** FR-01, FR-07, FR-08
+- **Requirement IDs:** FR-06, FR-07, FR-08
 - **Main Flow**: Open site -> View horizontal status overview -> Locate highlighted ticket in queue grid
 - **Key Features:**
   - Spreads status cards (Service, Current Stage, Estimated Pickup) horizontally across top banner for desktop viewing.
   - Displays a multi-column grid of all active shop tickets, hiding personal names/numbers to protect privacy.
   - Places a wide lookup input card at the bottom allowing returning customers to retrieve their ticket by phone number.
+  - **Note:** This Dashboard has two views. Customers (Kim) see only their own ticket. Staff (Mort) see the full grid of ticket numbers, and each number opens Manage Queue (FR-01).
 
 ---
 

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Dashboard · CleanQ{% endblock %}
+
+{% block content %}
+  <p class="text-uppercase text-body-secondary small mb-1">Customer / My laundry</p>
+  <h1 class="h2">Customer Dashboard</h1>
+  <p class="text-body-secondary">Find your ticket, track your order, and see when your laundry is ready.</p>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="h5">Find my tickets</h2>
+      <form method="get" action="{{ url_for('track') }}">
+        <label for="phone" class="form-label">Your mobile number</label>
+        <input type="tel" inputmode="tel" autocomplete="tel" class="form-control form-control-lg"
+               id="phone" name="phone" placeholder="0917 123 4567" required
+               aria-describedby="phoneHelp">
+        <div id="phoneHelp" class="form-text">Enter your mobile number to see only your tickets.</div>
+        <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Find my tickets</button>
+      </form>
+
+      {% if error %}
+      <div class="alert alert-danger mt-3 mb-0" role="alert">{{ error }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if searched %}
+    {% if tickets %}
+    <h2 class="h5">Your tickets</h2>
+    <div class="row g-3">
+      {% for t in tickets %}
+      <div class="col-6 col-md-3">
+        <a class="card h-100 text-center text-decoration-none"
+           href="{{ url_for('track_ticket', ticket_id=t.number) }}">
+          <div class="card-body py-4">
+            <span class="ticket-number fs-3">#{{ t.number }}</span>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-warning" role="status">No orders found for that number.</div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

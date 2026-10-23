@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · CleanQ{% endblock %}
+
+{% block content %}
+  <p class="text-uppercase text-body-secondary small mb-1">Staff / Laundry operations</p>
+  <h1 class="h2">Dashboard</h1>
+  <p class="text-body-secondary">Every load, one number. Select a ticket to manage its order.</p>
+
+  <h2 class="h5 mt-4">
+    Current tickets <span class="text-body-secondary small">{{ tickets|length }} tickets</span>
+  </h2>
+
+  {% if tickets %}
+  <div class="row g-3">
+    {% for t in tickets %}
+    <div class="col-6 col-md-3">
+      <a class="card h-100 text-center text-decoration-none"
+         href="{{ url_for('ticket', ticket_id=t.number) }}">
+        <div class="card-body py-4">
+          <span class="ticket-number fs-3">#{{ t.number }}</span>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p>No active tickets right now.</p>
+  {% endif %}
+{% endblock %}

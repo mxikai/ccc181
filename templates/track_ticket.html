@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket #{{ ticket.number }} · CleanQ{% endblock %}
+
+{% block content %}
+  {% set current = statuses.index(ticket.status) %}
+  {% set next_stage = statuses[current + 1] if current < statuses|length - 1 else None %}
+
+  <a class="small" href="{{ url_for('track') }}">&larr; Back to my tickets</a>
+
+  <p class="mt-3 mb-0 text-body-secondary">Your ticket number is</p>
+  <p class="display-3 ticket-number text-primary mb-4">#{{ ticket.number }}</p>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <p class="text-uppercase text-body-secondary small mb-1">Service</p>
+          <p class="fs-4 mb-0">{{ ticket.service_name }}</p>
+          <p class="text-body-secondary small mb-0">{{ ticket.eta_hours|round|int }} hours turnaround</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 bg-primary-subtle border-primary-subtle">
+        <div class="card-body">
+          <p class="text-uppercase text-body-secondary small mb-1">Current stage</p>
+          <p class="fs-4 mb-0">{{ ticket.status|capitalize }}</p>
+          <p class="text-body-secondary small mb-0">
+            {% if ticket.status == "ready" %}
+              Ready for you to pick up.
+            {% elif ticket.status == "claimed" %}
+              Already picked up.
+            {% else %}
+              Your order is being processed. Next: {{ next_stage|capitalize }}.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <p class="text-uppercase text-body-secondary small mb-1">Estimated pickup</p>
+          <p class="fs-4 mb-0">
+            {% if ticket.status == "ready" %}
+              Ready now
+            {% elif ticket.status == "claimed" %}
+              Picked up
+            {% else %}
+              About {{ ticket.eta_hours|round|int }} hours
+            {% endif %}
+          </p>
+          {% if ticket.status not in ["ready", "claimed"] %}
+          <p class="text-body-secondary small mb-0">After drop-off</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    </div>
+
+  {% if ticket.status != "claimed" %}
+  <h2 class="h5 mt-4">Queue context</h2>
+  <p class="fs-5 mb-1">
+    {% if ticket.status == "ready" %}
+      Your laundry is ready, so there is no waiting line.
+    {% elif ticket.ahead == 0 %}
+      <span class="fw-semibold text-primary">No tickets</span> ahead of you.
+    {% else %}
+      <span class="fw-semibold text-primary">{{ ticket.ahead }} ticket{{ "" if ticket.ahead == 1 else "s" }}</span> ahead of you.
+    {% endif %}
+  </p>
+  {% if ticket.status != "ready" %}
+  <p class="text-body-secondary small">Counts orders received before yours that are still being processed.</p>
+  {% endif %}
+  {% endif %}
+{% endblock %}

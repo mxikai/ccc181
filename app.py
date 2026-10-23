@@ -6,7 +6,7 @@ then open http://127.0.0.1:5000
 """
 import re
 
-from flask import Flask, render_template, abort, redirect, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
 # Needed so Flask can remember which mobile number a customer looked up.
@@ -14,10 +14,10 @@ app.secret_key = "change-this-before-sharing"
 
 # Services the shop offers. Price is per kilo; hours is the normal turnaround.
 SERVICES = [
-    {"id": 1, "name": "Wash, dry & fold", "price_per_kilo": 40, "hours": 24},
-    {"id": 2, "name": "Wash only", "price_per_kilo": 25, "hours": 12},
-    {"id": 3, "name": "Dry only", "price_per_kilo": 20, "hours": 6},
-    {"id": 4, "name": "Comforter / bulky", "price_per_kilo": 60, "hours": 48},
+    {"id": 1, "name": "Wash, dry & fold", "price_per_kilo": 65, "hours": 3},
+    {"id": 2, "name": "Wash only", "price_per_kilo": 35, "hours": 2},
+    {"id": 3, "name": "Dry only", "price_per_kilo": 30, "hours": 1},
+    {"id": 4, "name": "Comforter / bulky", "price_per_kilo": 100, "hours": 6},
 ]
 
 # The order moves through these statuses, one tap at a time.
@@ -61,9 +61,18 @@ def describe(ticket):
     return {
         **ticket,
         "service_name": service["name"],
+        "price_per_kilo": service["price_per_kilo"],
         "total": round(ticket["kilos"] * service["price_per_kilo"], 2),
         "eta_hours": service["hours"],
     }
+
+
+def tickets_ahead(ticket):
+    """How many earlier tickets are still being processed (not ready or claimed yet)."""
+    return sum(
+        1 for t in TICKETS
+        if t["number"] < ticket["number"] and t["status"] not in ("ready", "claimed")
+    )
 
 
 def public_view(ticket):
@@ -74,28 +83,40 @@ def public_view(ticket):
         "service_name": full["service_name"],
         "status": full["status"],
         "eta_hours": full["eta_hours"],
+        "ahead": tickets_ahead(ticket),
     }
-
 
 # ---------- Staff side ----------
 
 @app.route("/")
 def index():
-    # Ticket numbers only, and only orders that are not yet claimed.
-    active = [t for t in TICKETS if t["status"] != "claimed"]
-    return render_template("index.html", tickets=active)
+    # Short welcome page for the person waiting.
+    return render_template("index.html")
 
+
+@app.route("/join")
+def join_form():
+    # Placeholder until the order form is built (Part 5).
+    return render_template("join.html")
+
+
+@app.route("/staff")
+def staff_dashboard():
+    # FR-01: ticket numbers only, and only orders not yet claimed.
+    # Placeholder page until the full dashboard is built (Part 7).
+    active = [t for t in TICKETS if t["status"] != "claimed"]
+    return render_template("staff_dashboard.html", tickets=active)
 
 @app.route("/queue/<int:ticket_id>")
 def ticket(ticket_id):
+    # FR-02: all the details live here.
     ticket_data = next((t for t in TICKETS if t["number"] == ticket_id), None)
     if not ticket_data:
         abort(404)
     return render_template(
         "ticket.html", ticket=describe(ticket_data), statuses=STATUSES
     )
-
-
+    
 # ---------- Customer side ----------
 
 @app.route("/track")
@@ -131,6 +152,7 @@ def track_ticket(ticket_id):
     return render_template(
         "track_ticket.html", ticket=public_view(ticket_data), statuses=STATUSES
     )
+
 
 
 if __name__ == "__main__":
