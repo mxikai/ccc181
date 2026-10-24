@@ -12,7 +12,7 @@
   <a class="visually-hidden-focusable" href="#main">Skip to main content</a>
 
   {# Staff pages get the staff menu; every other page is the customer view. #}
-  {% set is_staff = request.endpoint in ['join_form', 'staff_dashboard', 'ticket'] %}
+    {% set is_staff = request.endpoint in ['join_form', 'join', 'staff_dashboard', 'ticket'] %}
 
   {# One menu item. It is highlighted when the current page is one of `endpoints`. #}
   {% macro nav_item(label, href, endpoints) %}
@@ -37,7 +37,7 @@
       <div class="collapse navbar-collapse" id="mainNav">
         <ul class="navbar-nav mx-md-auto">
           {% if is_staff %}
-            {{ nav_item('New Order', url_for('join_form'), ['join_form']) }}
+            {{ nav_item('New Order', url_for('join_form'), ['join_form', 'join']) }}
             {{ nav_item('Dashboard', url_for('staff_dashboard'), ['staff_dashboard']) }}
             {% if request.endpoint == 'ticket' %}
               {{ nav_item('Manage Queue', request.path, ['ticket']) }}

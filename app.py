@@ -94,10 +94,58 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/join")
+@app.get("/join")
 def join_form():
-    # Placeholder until the order form is built (Part 5).
-    return render_template("join.html")
+    # Show an empty order form.
+    return render_template("join.html", services=SERVICES, form={}, errors={})
+
+
+@app.post("/join")
+def join():
+    # Handle the submitted form. Never trust the input: check every field here,
+    # even though the browser may have checked it already.
+    form = request.form
+    name = " ".join(form.get("name", "").split())
+    phone = normalize_phone(form.get("phone", ""))
+    service_id = form.get("service_id", type=int)
+    paid = form.get("paid", "unpaid")
+    notes = form.get("notes", "").strip()
+
+    try:
+        kilos = round(float(form.get("kilos", "")), 2)
+    except ValueError:
+        kilos = None
+
+    errors = {}
+    if not name:
+        errors["name"] = "Enter the customer's name."
+    elif len(name) > 60:
+        errors["name"] = "Keep the name to 60 characters or fewer."
+    if phone is None:
+        errors["phone"] = "Enter a valid mobile number, like 0917 123 4567."
+    if service_id not in [s["id"] for s in SERVICES]:
+        errors["service_id"] = "Choose a service."
+    if kilos is None or not (0.1 <= kilos <= 50):
+        errors["kilos"] = "Enter the weight in kilos, between 0.1 and 50."
+    if paid not in ("paid", "unpaid"):
+        errors["paid"] = "Choose paid or unpaid."
+    if len(notes) > 200:
+        errors["notes"] = "Keep the notes to 200 characters or fewer."
+
+    if errors:
+        flash("Please fix the highlighted fields.", "danger")
+        return render_template(
+            "join.html", services=SERVICES, form=form, errors=errors
+        ), 400
+
+    number = max((t["number"] for t in TICKETS), default=0) + 1
+    TICKETS.append({
+        "number": number, "name": name, "phone": phone,
+        "service_id": service_id, "kilos": kilos, "notes": notes,
+        "paid": paid == "paid", "status": "received",
+    })
+    flash(f"Ticket #{number} created for {name}.", "success")
+    return redirect(url_for("ticket", ticket_id=number))
 
 
 @app.route("/staff")
