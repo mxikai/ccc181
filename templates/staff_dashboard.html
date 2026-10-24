@@ -7,24 +7,120 @@
   <h1 class="h2">Dashboard</h1>
   <p class="text-body-secondary">Every load, one number. Select a ticket to manage its order.</p>
 
-  <h2 class="h5 mt-4">
-    Current tickets <span class="text-body-secondary small">{{ tickets|length }} tickets</span>
-  </h2>
-
-  {% if tickets %}
-  <div class="row g-3">
-    {% for t in tickets %}
-    <div class="col-6 col-md-3">
-      <a class="card h-100 text-center text-decoration-none"
-         href="{{ url_for('ticket', ticket_id=t.number) }}">
-        <div class="card-body py-4">
-          <span class="ticket-number fs-3">#{{ t.number }}</span>
-        </div>
-      </a>
-    </div>
+  {# Filter + waiting count per service #}
+    <nav class="filter-bar mb-2" aria-label="Filter by service">
+    <a href="{{ url_for('staff_dashboard') }}"
+       class="{% if not selected %}active{% endif %}"
+       {% if not selected %}aria-current="page"{% endif %}>All <span class="badge text-bg-light border">{{ total_waiting }}</span></a>
+    {% for s in services %}
+    <a href="{{ url_for('staff_dashboard', service_id=s.id) }}"
+       class="{% if selected == s.id %}active{% endif %}"
+       {% if selected == s.id %}aria-current="page"{% endif %}>{{ s.name }} <span class="badge text-bg-light border">{{ counts[s.id] }}</span></a>
     {% endfor %}
+  </nav>
+  <p class="text-body-secondary small">Numbers show how many are waiting (not yet ready) per service.</p>
+
+  <form method="post" action="{{ url_for('call_next') }}" class="mb-3">
+    <input type="hidden" name="service_id" value="{{ selected or '' }}">
+    <button type="submit" class="btn btn-primary btn-lg">Start next load</button>
+  </form>
+
+  {% if queue %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle bg-white mb-0">
+      <caption class="px-2">Active tickets in order, oldest first</caption>
+      <thead>
+        <tr>
+          <th scope="col">Ticket</th>
+          <th scope="col">Service</th>
+          <th scope="col">Status</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in queue %}
+        {% set nxt = statuses[statuses.index(t.status) + 1] %}
+        <tr>
+          <th scope="row">
+            <a class="ticket-number text-decoration-none" href="{{ url_for('ticket', ticket_id=t.number) }}">#{{ t.number }}</a>
+          </th>
+          <td>{{ t.service_name }}</td>
+          <td>
+            <span class="badge {{ 'text-bg-success' if t.status == 'ready' else 'text-bg-primary' if t.status != 'received' else 'text-bg-secondary' }}">{{ t.status|capitalize }}</span>
+            {% if t.status == 'ready' %}<span class="small text-body-secondary d-block">Waiting for pickup</span>{% endif %}
+          </td>
+          <td class="text-nowrap">
+            <form method="post" action="{{ url_for('staff_action', ticket_id=t.number, action='advance') }}" class="d-inline">
+              <input type="hidden" name="service_id" value="{{ selected or '' }}">
+              <button type="submit"
+                      class="btn btn-sm {{ 'btn-success' if nxt == 'claimed' else 'btn-primary' }}"
+                      aria-label="{{ 'Mark ticket %d as claimed' % t.number if nxt == 'claimed' else 'Move ticket %d to %s' % (t.number, nxt) }}">
+                {{ 'Mark claimed' if nxt == 'claimed' else 'Advance to ' ~ nxt|capitalize }}
+              </button>
+            </form>
+            <form method="post" action="{{ url_for('staff_action', ticket_id=t.number, action='cancel') }}" class="d-inline"
+                  onsubmit="return confirm('Cancel ticket #{{ t.number }}?');">
+              <input type="hidden" name="service_id" value="{{ selected or '' }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger"
+                      aria-label="Cancel ticket {{ t.number }}">Cancel</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
   {% else %}
-  <p>No active tickets right now.</p>
+  <div class="alert alert-light border" role="status">
+    All caught up! No active tickets{% if selected %} for this service{% endif %} right now.
+  </div>
+  {% endif %}
+
+    <h2 class="h4 mt-5">Claimed today</h2>
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+      <div class="small text-body-secondary">Orders claimed</div>
+      <div class="fs-4 ticket-number">{{ summary.orders }}</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+      <div class="small text-body-secondary">Kilos</div>
+      <div class="fs-4 ticket-number">{{ summary.kilos }}</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+      <div class="small text-body-secondary">Sales collected</div>
+      <div class="fs-4 ticket-number">&#8369;{{ "%.2f"|format(summary.revenue) }}</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+      <div class="small text-body-secondary">Claimed but unpaid</div>
+      <div class="fs-4 ticket-number {% if summary.unpaid %}text-danger{% endif %}">&#8369;{{ "%.2f"|format(summary.unpaid) }}</div></div></div></div>
+  </div>
+
+  {% if claimed_today %}
+  <div class="table-responsive">
+    <table class="table align-middle bg-white mb-0">
+      <caption class="px-2">Orders picked up today, newest first</caption>
+      <thead>
+        <tr>
+          <th scope="col">Ticket</th>
+          <th scope="col">Service</th>
+          <th scope="col">Kilos</th>
+          <th scope="col">Total</th>
+          <th scope="col">Payment</th>
+          <th scope="col">Claimed at</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in claimed_today %}
+        <tr>
+          <th scope="row"><a class="ticket-number text-decoration-none" href="{{ url_for('ticket', ticket_id=t.number) }}">#{{ t.number }}</a></th>
+          <td>{{ t.service_name }}</td>
+          <td class="font-monospace">{{ t.kilos }}</td>
+          <td class="font-monospace">&#8369;{{ "%.2f"|format(t.total) }}</td>
+          <td><span class="badge {{ 'text-bg-success' if t.paid else 'text-bg-danger' }}">{{ 'Paid' if t.paid else 'Unpaid' }}</span></td>
+          <td class="text-nowrap">{{ t.claimed_at.strftime('%I:%M %p') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-light border" role="status">Nothing claimed yet today.</div>
   {% endif %}
 {% endblock %}

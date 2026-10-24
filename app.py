@@ -5,7 +5,7 @@ Run it with:
 then open http://127.0.0.1:5000
 """
 import re
-
+from datetime import date, datetime
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
@@ -31,8 +31,8 @@ TICKETS = [
      "kilos": 3.5, "notes": "Separate whites", "paid": True, "status": "received"},
     {"number": 3, "name": "Ana Reyes", "phone": "09171234567", "service_id": 2,
      "kilos": 2.0, "notes": "", "paid": True, "status": "ready"},
-    {"number": 4, "name": "Carla Cruz", "phone": "09451112222", "service_id": 3,
-     "kilos": 4.0, "notes": "", "paid": False, "status": "claimed"},
+        {"number": 4, "name": "Carla Cruz", "phone": "09451112222", "service_id": 3,
+     "kilos": 4.0, "notes": "", "paid": False, "status": "claimed", "claimed_at": datetime.now()},
 ]
 
 
@@ -154,12 +154,92 @@ def join():
     return redirect(url_for("ticket", ticket_id=number))
 
 
-@app.route("/staff")
+@app.get("/staff")
 def staff_dashboard():
-    # FR-01: ticket numbers only, and only orders not yet claimed.
-    # Placeholder page until the full dashboard is built (Part 7).
-    active = [t for t in TICKETS if t["status"] not in ("claimed", "left")]
-    return render_template("staff_dashboard.html", tickets=active)
+    # FR-01. Open to everyone for now (no login until a later week).
+    service_id = request.args.get("service_id", type=int)
+    active = sorted(
+        (t for t in TICKETS if t["status"] not in ("claimed", "left")),
+        key=lambda t: t["number"],
+    )
+    # Star feature: how many tickets are waiting (still being processed) per service.
+    counts = {
+        s["id"]: sum(1 for t in active
+                     if t["service_id"] == s["id"] and t["status"] in IN_PROGRESS)
+        for s in SERVICES
+    }
+    queue = [describe(t) for t in active
+             if not service_id or t["service_id"] == service_id]
+        # Claim log: everything picked up today, newest first.
+    claimed_today = sorted(
+        (describe(t) for t in TICKETS
+         if t["status"] == "claimed" and t.get("claimed_at")
+         and t["claimed_at"].date() == date.today()),
+        key=lambda t: t["claimed_at"], reverse=True,
+    )
+    summary = {
+        "orders": len(claimed_today),
+        "kilos": round(sum(t["kilos"] for t in claimed_today), 1),
+        "revenue": sum(t["total"] for t in claimed_today if t["paid"]),
+        "unpaid": sum(t["total"] for t in claimed_today if not t["paid"]),
+    }
+    return render_template(
+        "staff_dashboard.html", queue=queue, services=SERVICES, counts=counts,
+        total_waiting=sum(counts.values()), selected=service_id, statuses=STATUSES,
+        claimed_today=claimed_today, summary=summary,
+    )
+
+
+def back_to_staff(ticket_id=None):
+    """After an action, return to the page the staff member came from."""
+    if ticket_id and request.form.get("from") == "ticket":
+        return redirect(url_for("ticket", ticket_id=ticket_id))
+    return redirect(url_for("staff_dashboard",
+                            service_id=request.form.get("service_id", type=int)))
+
+
+@app.post("/staff/call-next")
+def call_next():
+    # Start the first ticket that is still only "received" (optionally for one service).
+    service_id = request.form.get("service_id", type=int)
+    first = next(
+        (t for t in sorted(TICKETS, key=lambda t: t["number"])
+         if t["status"] == "received"
+         and (not service_id or t["service_id"] == service_id)),
+        None,
+    )
+    if first is None:
+        flash("No one is waiting to be started.", "info")
+    else:
+        first["status"] = "washing"
+        flash(f"Ticket #{first['number']} moved to washing.", "info")
+    return back_to_staff()
+
+
+@app.post("/staff/tickets/<int:ticket_id>/<action>")
+def staff_action(ticket_id, action):
+    t = next((t for t in TICKETS if t["number"] == ticket_id), None)
+    if t is None or action not in ("advance", "cancel", "pay"):
+        abort(404)
+
+    if action == "pay":
+        t["paid"] = True
+        flash(f"Ticket #{ticket_id} marked as paid.", "success")
+    elif t["status"] in ("claimed", "left"):
+        flash(f"Ticket #{ticket_id} is already closed.", "warning")
+    elif action == "advance":
+        t["status"] = STATUSES[STATUSES.index(t["status"]) + 1]
+        if t["status"] == "claimed":
+            t["claimed_at"] = datetime.now()
+            flash(f"Ticket #{ticket_id} claimed.", "success")
+            if not t["paid"]:
+                flash(f"Ticket #{ticket_id} was claimed but is still unpaid.", "warning")
+        else:
+            flash(f"Ticket #{ticket_id} moved to {t['status']}.", "info")
+    else:  # cancel
+        t["status"] = "left"
+        flash(f"Ticket #{ticket_id} cancelled.", "info")
+    return back_to_staff(ticket_id)
 
 @app.route("/queue/<int:ticket_id>")
 def ticket(ticket_id):
@@ -175,9 +255,14 @@ def ticket(ticket_id):
 
 @app.route("/track")
 def track():
-    # Customer enters a mobile number and sees the tickets linked to it.
     raw = request.args.get("phone", "").strip()
+
     if not raw:
+        phone = session.get("phone")
+        if request.args.get("back") and phone:
+            mine = [t for t in TICKETS if t["phone"] == phone]
+            return render_template("track.html", searched=True, error=None, tickets=mine)
+        session.pop("phone", None)
         return render_template("track.html", searched=False, error=None, tickets=[])
 
     phone = normalize_phone(raw)
@@ -187,7 +272,7 @@ def track():
             error="Please enter a valid mobile number, like 0917 123 4567.",
         )
 
-    session["phone"] = phone  # remembered so the ticket page can check it
+    session["phone"] = phone
     mine = [t for t in TICKETS if t["phone"] == phone]
     return render_template("track.html", searched=True, error=None, tickets=mine)
 

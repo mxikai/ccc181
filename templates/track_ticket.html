@@ -9,8 +9,8 @@
       'drying': 'text-bg-primary', 'folding': 'text-bg-primary',
       'ready': 'text-bg-success', 'claimed': 'text-bg-dark', 'left': 'text-bg-danger'
   }[ticket.status] %}
-
-  <a class="small" href="{{ url_for('track') }}">&larr; Back to my tickets</a>
+  
+  <a class="small" href="{{ url_for('track', back=1) }}">&larr; Back to my tickets</a>
 
   <div class="card mt-3">
     <div class="card-body p-4">

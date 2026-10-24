@@ -93,10 +93,12 @@
 
       {% if next_stage %}
       {# Shown here on tablets and up; phones get the pinned bar below. #}
-      {# TODO: turn into a form that posts to an advance route (FR-10). #}
-      <button type="button" class="btn btn-primary btn-lg w-100 d-none d-md-block" disabled>
-        Advance to {{ next_stage|capitalize }} &rarr;
-      </button>
+            <form method="post" action="{{ url_for('staff_action', ticket_id=ticket.number, action='advance') }}" class="d-none d-md-block">
+        <input type="hidden" name="from" value="ticket">
+        <button type="submit" class="btn btn-primary btn-lg w-100">
+          Advance to {{ next_stage|capitalize }} &rarr;
+        </button>
+      </form>
       <p class="text-body-secondary small mt-2 d-none d-md-block">One action moves this ticket to the next stage.</p>
       {% endif %}
 
@@ -112,8 +114,10 @@
         <span class="fs-3 ticket-number">&#8369;{{ "%.2f"|format(ticket.total) }}</span>
       </div>
       {% if not ticket.paid %}
-      {# TODO: turn into a form that posts to a mark-paid route (FR-11). #}
-      <button type="button" class="btn btn-outline-secondary w-100" disabled>Mark as paid</button>
+            <form method="post" action="{{ url_for('staff_action', ticket_id=ticket.number, action='pay') }}">
+        <input type="hidden" name="from" value="ticket">
+        <button type="submit" class="btn btn-outline-secondary w-100">Mark as paid</button>
+      </form>
       <p class="text-body-secondary small mt-2">Confirm payment has been collected before marking paid.</p>
       {% endif %}
     </div>
@@ -131,9 +135,12 @@
       <span class="text-uppercase text-body-secondary">Current stage</span>
       <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">{{ ticket.status|capitalize }}</span>
     </div>
-    <button type="button" class="btn btn-primary w-100" disabled>
-      Advance to {{ next_stage|capitalize }} &rarr;
-    </button>
+        <form method="post" action="{{ url_for('staff_action', ticket_id=ticket.number, action='advance') }}">
+      <input type="hidden" name="from" value="ticket">
+      <button type="submit" class="btn btn-primary w-100">
+        Advance to {{ next_stage|capitalize }} &rarr;
+      </button>
+    </form>
   </div>
   {% endif %}
 {% endblock %}

@@ -43,5 +43,6 @@
     {% else %}
     <div class="alert alert-warning" role="status">No orders found for that number.</div>
     {% endif %}
+    <p class="small mt-3">Not your tickets? <a href="{{ url_for('track') }}">Use a different number</a></p>
   {% endif %}
 {% endblock %}

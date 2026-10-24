@@ -98,3 +98,25 @@ body { background-color: #f4f7fc; }
   font-family: var(--bs-font-monospace);
   font-weight: 600;
 }
+
+/* Segmented filter: one rectangle, dividers between options */
+.filter-bar {
+  display: flex;
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 0.5rem;
+}
+.filter-bar a {
+  flex: 1 0 auto;
+  padding: 0.65rem 1rem;
+  text-align: center;
+  white-space: nowrap;
+  text-decoration: none;
+  color: #1B2438;
+  border-left: 1px solid #ced4da;
+}
+.filter-bar a:first-child { border-left: 0; }
+.filter-bar a:hover { background: #e8f0fe; }
+.filter-bar a:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+.filter-bar a.active { background: #2563eb; color: #fff; font-weight: 600; }
