@@ -292,6 +292,17 @@ def track_ticket(ticket_id):
         "track_ticket.html", ticket=public_view(ticket_data), statuses=STATUSES
     )
 
+@app.get("/track/<int:ticket_id>/status.json")
+def track_ticket_status(ticket_id):
+    # Same rule as the ticket page: only for a number this customer looked up.
+    phone = session.get("phone")
+    ticket_data = next(
+        (t for t in TICKETS if t["number"] == ticket_id and t["phone"] == phone), None
+    ) if phone else None
+    if ticket_data is None:
+        abort(404)
+    return {"status": ticket_data["status"], "ahead": tickets_ahead(ticket_data)}
+
 @app.post("/track/<int:ticket_id>/leave")
 def leave_queue(ticket_id):
     # Customer cancels their own ticket. Only works for a number they looked up.
