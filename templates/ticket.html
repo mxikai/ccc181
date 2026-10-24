@@ -3,8 +3,8 @@
 {% block title %}Ticket #{{ ticket.number }} · CleanQ{% endblock %}
 
 {% block content %}
-  {% set current = statuses.index(ticket.status) %}
-  {% set next_stage = statuses[current + 1] if current < statuses|length - 1 else None %}
+  {% set current = statuses.index(ticket.status) if ticket.status in statuses else -1 %}
+  {% set next_stage = statuses[current + 1] if 0 <= current < statuses|length - 1 else None %}
 
   <div class="d-flex justify-content-between align-items-center small mb-3">
     <a href="{{ url_for('staff_dashboard') }}">&larr; All tickets</a>

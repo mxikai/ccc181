@@ -67,11 +67,17 @@ def describe(ticket):
     }
 
 
+# Statuses where the laundry is still being processed (the customer is "waiting").
+IN_PROGRESS = ("received", "washing", "drying", "folding")
+
+
 def tickets_ahead(ticket):
-    """How many earlier tickets are still being processed (not ready or claimed yet)."""
+    """Earlier tickets for the same service that are still being processed."""
     return sum(
         1 for t in TICKETS
-        if t["number"] < ticket["number"] and t["status"] not in ("ready", "claimed")
+        if t["service_id"] == ticket["service_id"]
+        and t["number"] < ticket["number"]
+        and t["status"] in IN_PROGRESS
     )
 
 
@@ -152,7 +158,7 @@ def join():
 def staff_dashboard():
     # FR-01: ticket numbers only, and only orders not yet claimed.
     # Placeholder page until the full dashboard is built (Part 7).
-    active = [t for t in TICKETS if t["status"] != "claimed"]
+    active = [t for t in TICKETS if t["status"] not in ("claimed", "left")]
     return render_template("staff_dashboard.html", tickets=active)
 
 @app.route("/queue/<int:ticket_id>")
@@ -201,6 +207,23 @@ def track_ticket(ticket_id):
         "track_ticket.html", ticket=public_view(ticket_data), statuses=STATUSES
     )
 
+@app.post("/track/<int:ticket_id>/leave")
+def leave_queue(ticket_id):
+    # Customer cancels their own ticket. Only works for a number they looked up.
+    phone = session.get("phone")
+    if not phone:
+        return redirect(url_for("track"))
+    ticket_data = next(
+        (t for t in TICKETS if t["number"] == ticket_id and t["phone"] == phone), None
+    )
+    if not ticket_data:
+        abort(404)
+    if ticket_data["status"] in IN_PROGRESS:
+        ticket_data["status"] = "left"
+        flash(f"You left the queue. Ticket #{ticket_id} was cancelled.", "success")
+    else:
+        flash("This ticket can no longer be cancelled.", "warning")
+    return redirect(url_for("index"))
 
 
 if __name__ == "__main__":
