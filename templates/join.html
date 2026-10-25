@@ -48,7 +48,7 @@
                  for="service-{{ s.id }}">
             <span>
               {{ s.name }}
-              <small class="d-block opacity-75">{{ s.hours }} hour{{ "" if s.hours == 1 else "s" }} turnaround</small>
+              <small class="d-block">{{ s.hours }} hour{{ "" if s.hours == 1 else "s" }} turnaround</small>
             </span>
             <span>&#8369;{{ s.price_per_kilo }} / kg</span>
           </label>

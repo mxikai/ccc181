@@ -241,6 +241,18 @@ def staff_action(ticket_id, action):
         flash(f"Ticket #{ticket_id} cancelled.", "info")
     return back_to_staff(ticket_id)
 
+@app.get("/queue")
+def queue_home():
+    # The "Manage Queue" tab: open the oldest active ticket.
+    active = sorted(
+        (t for t in TICKETS if t["status"] not in ("claimed", "left")),
+        key=lambda t: t["number"],
+    )
+    if not active:
+        flash("No active tickets to manage right now.", "info")
+        return redirect(url_for("staff_dashboard"))
+    return redirect(url_for("ticket", ticket_id=active[0]["number"]))
+
 @app.route("/queue/<int:ticket_id>")
 def ticket(ticket_id):
     # FR-02: all the details live here.

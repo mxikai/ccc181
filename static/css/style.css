@@ -120,3 +120,18 @@ body { background-color: #f4f7fc; }
 .filter-bar a:hover { background: #e8f0fe; }
 .filter-bar a:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
 .filter-bar a.active { background: #2563eb; color: #fff; font-weight: 600; }
+
+/* Bigger tap targets on phones */
+@media (max-width: 767.98px) {
+  .btn-sm { min-height: 44px; min-width: 44px; padding-left: 0.9rem; padding-right: 0.9rem; }
+}
+
+/* Outline buttons (service choices): darker text, brand blue border */
+.btn-outline-primary {
+  --bs-btn-color: #1d4ed8;
+  --bs-btn-border-color: #2563eb;
+  --bs-btn-hover-bg: #2563eb;
+  --bs-btn-hover-border-color: #2563eb;
+  --bs-btn-active-bg: #1d4ed8;
+  --bs-btn-active-border-color: #1d4ed8;
+}

@@ -10,6 +10,8 @@
       'ready': 'text-bg-success', 'claimed': 'text-bg-dark', 'left': 'text-bg-danger'
   }[ticket.status] %}
 
+    <h1 class="visually-hidden">My ticket status</h1>
+
   <a class="small" href="{{ url_for('track', back=1) }}">&larr; Back to my tickets</a>
 
   <div class="card mt-3">

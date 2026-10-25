@@ -39,9 +39,7 @@
           {% if is_staff %}
             {{ nav_item('New Order', url_for('join_form'), ['join_form', 'join']) }}
             {{ nav_item('Dashboard', url_for('staff_dashboard'), ['staff_dashboard']) }}
-            {% if request.endpoint == 'ticket' %}
-              {{ nav_item('Manage Queue', request.path, ['ticket']) }}
-            {% endif %}
+                        {{ nav_item('Manage Queue', request.path if request.endpoint == 'ticket' else url_for('queue_home'), ['ticket']) }}
           {% else %}
             {{ nav_item('Dashboard', url_for('track'), ['track', 'track_ticket']) }}
           {% endif %}

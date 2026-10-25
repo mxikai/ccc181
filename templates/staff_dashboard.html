@@ -50,6 +50,8 @@
             {% if t.status == 'ready' %}<span class="small text-body-secondary d-block">Waiting for pickup</span>{% endif %}
           </td>
           <td class="text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('ticket', ticket_id=t.number) }}"
+               aria-label="Manage ticket {{ t.number }}">Manage</a>
             <form method="post" action="{{ url_for('staff_action', ticket_id=t.number, action='advance') }}" class="d-inline">
               <input type="hidden" name="service_id" value="{{ selected or '' }}">
               <button type="submit"
