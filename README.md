@@ -1,134 +1,84 @@
-# CleanQ: Hello, Flask
+# CleanQ
 
-Starter Flask app for **CCC181 Week 2: Git, GitHub & Flask Foundations**.
-It shows the project structure, routes, templates and static files from the slides.
+A laundry order queue and pickup tracker for small neighborhood laundry shops in the Philippines, built with Flask, Jinja2 and Bootstrap 5 for **CCC181** (Git, GitHub & Flask foundations).
+
+Staff log orders and move them through stages. Customers enter their mobile number to see their own tickets, the current stage, the estimated pickup time and how many tickets are ahead of them.
+
+## Features
+
+**Staff**
+- **New Order** (`/join`): create a ticket with name, mobile number, service, weight, payment status and notes. The server checks every field.
+- **Dashboard** (`/staff`): active tickets in order, a filter by service with a count of waiting tickets, a "Start next load" button, Advance and Cancel buttons on each row, and a "Claimed today" log with kilos, sales collected and unpaid totals.
+- **Manage Queue** (`/queue`): one ticket's full details, a stage list, an Advance button (pinned to the bottom on phones) and a Mark as paid button.
+
+**Customers**
+- **Customer Dashboard** (`/track`): enter a mobile number to see only your own tickets.
+- **Ticket page** (`/track/<id>`): large ticket number, service, current stage in words, estimated pickup and "N tickets ahead of you". The page refreshes its status every 10 seconds without a reload. Customers can leave the queue.
+- Customers never see mobile numbers, names, prices or other people's tickets.
+
+## Stages
+
+`received → washing → drying → folding → ready → claimed`
+
+A ticket that is cancelled by staff or by the customer gets the status `left`.
+
+## Services
+
+| Service | Price per kilo | Turnaround |
+|---|---|---|
+| Wash, dry & fold | ₱65 | 3 hours |
+| Wash only | ₱35 | 2 hours |
+| Dry only | ₱30 | 1 hour |
+| Comforter / bulky | ₱100 | 6 hours |
+
+## Routes
+
+| URL | Method | What it does |
+|---|---|---|
+| `/` | GET | Welcome page |
+| `/join` | GET, POST | New Order form and ticket creation |
+| `/staff` | GET | Staff Dashboard (`?service_id=` filters by service) |
+| `/staff/call-next` | POST | Start the oldest ticket that is still "received" |
+| `/staff/tickets/<id>/<action>` | POST | `advance`, `cancel` or `pay` for one ticket |
+| `/queue` | GET | Manage Queue tab: opens the oldest active ticket |
+| `/queue/<id>` | GET | Manage Queue for one ticket (404 if unknown) |
+| `/track` | GET | Customer lookup (`?phone=`); a plain visit always starts blank |
+| `/track/<id>` | GET | Customer ticket page, only for the number they looked up |
+| `/track/<id>/status.json` | GET | Status and "ahead" count used by the live refresh |
+| `/track/<id>/leave` | POST | Customer cancels their own ticket |
+
+Every action that changes data uses POST, never a plain link.
 
 ## Project structure
 
 ```
-my-app/
-├── app.py              # creates the app and defines routes
-├── requirements.txt    # packages to rebuild the environment
-├── .gitignore          # keeps .venv, caches and secrets out of Git
-├── .venv/              # your virtual environment (not committed)
-├── templates/          # Jinja2 HTML files for render_template()
-│   ├── base.html       # shared layout
-│   ├── index.html      # home page
-│   └── ticket.html     # page for /queue/<ticket_id>
-└── static/             # served at /static/...
-    ├── css/style.css
-    └── js/main.js
+ccc181/
+├── app.py                   # routes, sample data and helpers
+├── requirements.txt
+├── .gitignore               # keeps .venv and __pycache__ out of Git
+├── README.md
+├── templates/
+│   ├── base.html            # layout, navbar, flash messages, skip link
+│   ├── index.html           # welcome page
+│   ├── join.html            # New Order form
+│   ├── staff_dashboard.html # staff Dashboard
+│   ├── ticket.html          # Manage Queue (staff)
+│   ├── track.html           # customer lookup and ticket list
+│   └── track_ticket.html    # customer ticket page
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── main.js          # double-submit guard on New Order
+└── docs/
+    ├── week1/
+    │   └── proposal.md
+    └── week3/
+        ├── personas.md
+        ├── feedback.md      # wireframe self-review
+        ├── accessibility.md
+        ├── usability-test.md
+        ├── report.md
+        ├── screenshots/     # before/after, persona images
+        └── wireframes/      # wireframe images and descriptions
 ```
-
-## Routes
-
-| URL | View function | What you see |
-|---|---|---|
-| `/` | `index()` | "Hello, Ana!" and a list of tickets, rendered with `index.html` |
-| `/queue/<int:ticket_id>` | `ticket()` | A page for that ticket, e.g. `/queue/12` |
-| `/hello` | `hello()` | The plain text "Hello, CCC181!" |
-
-Try `/queue/abc`: the `int` converter only accepts numbers, so Flask returns 404.
-
-## 1. Set up the Python environment
-
-```bash
-# create (once per project)
-python -m venv .venv
-
-# activate (every new terminal)
-.venv\Scripts\activate          # Windows
-source .venv/bin/activate       # macOS/Linux
-
-# install the packages
-pip install -r requirements.txt
-```
-
-Your prompt shows `(.venv)` when the environment is active. Some systems use `python3` or `py` instead of `python`.
-If PowerShell blocks the activate script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or use Command Prompt.
-
-If you add more packages later, record them with:
-
-```bash
-pip freeze > requirements.txt
-```
-
-## 2. Run the app
-
-```bash
-flask --app app run --debug
-```
-
-Open http://127.0.0.1:5000. With `--debug`, the server reloads every time you save a file. Never use debug mode in production.
-
-## 3. Put it on GitHub
-
-### Once per computer
-
-```bash
-git config --global user.name "Your Name"
-git config --global user.email you@g.msuiit.edu.ph   # same email as your GitHub account
-git config --list
-```
-
-### Create the local repository and first commit
-
-```bash
-git init
-git branch -M main
-git status              # .venv should NOT appear, thanks to .gitignore
-git add .
-git commit -m "Add Flask starter app"
-```
-
-### Connect to GitHub and push
-
-1. On GitHub, create a new **empty** repository (no README, no .gitignore).
-2. Copy its URL, then:
-
-```bash
-git remote add origin <repo-url>
-git push -u origin main
-```
-
-GitHub does not accept your account password for Git over HTTPS. Sign in through Git Credential Manager or the GitHub CLI, or use a personal access token or SSH key.
-
-### Everyday loop
-
-```bash
-git pull origin main     # before you start working
-git status
-git add <file>
-git commit -m "Add join-queue form"
-git push origin main     # when you have commits to share
-```
-
-## 4. Lab: ship it through a pull request
-
-1. On GitHub, open an issue: **"Set up Flask starter app"**.
-2. Pull the latest `main`, then create a branch:
-   ```bash
-   git switch main
-   git pull origin main
-   git switch -c feature/flask-setup
-   ```
-3. Create `.venv`, install Flask, write `requirements.txt` and `.gitignore`.
-4. Build `app.py` with a home route and one dynamic route, rendered with `base.html` and `index.html`.
-5. Commit in small steps, then push the branch:
-   ```bash
-   git push -u origin feature/flask-setup
-   ```
-6. On GitHub, click **Compare & pull request** and write `Closes #N` in the description (N is your issue number). Merge it, then:
-   ```bash
-   git switch main
-   git pull origin main
-   ```
-
-**Early finishers:** add another static CSS rule linked with `url_for`, or a third route based on one Must feature from your project milestone.
-
-## Commit message tips
-
-- Short summary in the imperative: "Add...", "Fix..."
-- One logical change per commit
-- Commit early and often
-- Good: "Add join-queue form". Unhelpful: "update", "asdf", "final na talaga".
