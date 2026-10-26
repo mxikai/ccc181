@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket #{{ ticket.number }} · CleanQ{% endblock %}
+
+{% block content %}
+  {% set current = statuses.index(ticket.status) if ticket.status in statuses else -1 %}
+  {% set next_stage = statuses[current + 1] if 0 <= current < statuses|length - 1 else None %}
+
+  <div class="d-flex justify-content-between align-items-center small mb-3">
+    <a href="{{ url_for('staff_dashboard') }}">&larr; All tickets</a>
+    <span class="text-body-secondary font-monospace">/queue/{{ ticket.number }}</span>
+  </div>
+
+  <p class="text-uppercase text-body-secondary small mb-1">Staff / Laundry operations</p>
+  <h1 class="h2">Manage Queue</h1>
+  <p class="text-body-secondary">One ticket, all the details. Keep this load moving.</p>
+
+  <div class="row g-4">
+    {# Left: the order details #}
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start">
+            <span class="text-uppercase text-body-secondary small">Order ticket</span>
+            <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">
+              {{ "Paid" if ticket.paid else "Unpaid" }}
+            </span>
+          </div>
+          <p class="display-3 ticket-number my-3">#{{ ticket.number }}</p>
+          <hr>
+          <dl class="row mb-0">
+            <div class="col-sm-6 mb-3">
+              <dt class="fw-normal text-body-secondary small">Customer name</dt>
+              <dd class="mb-0">{{ ticket.name }}</dd>
+            </div>
+            <div class="col-sm-6 mb-3">
+              <dt class="fw-normal text-body-secondary small">Mobile number &middot; staff only</dt>
+              <dd class="mb-0">{{ ticket.phone }}</dd>
+            </div>
+            <div class="col-sm-6 mb-3">
+              <dt class="fw-normal text-body-secondary small">Service type</dt>
+              <dd class="mb-0">{{ ticket.service_name }}</dd>
+            </div>
+            <div class="col-sm-6 mb-3">
+              <dt class="fw-normal text-body-secondary small">Weight</dt>
+              <dd class="mb-0 font-monospace">{{ ticket.kilos }} kg</dd>
+            </div>
+            {% if ticket.notes %}
+            <div class="col-12 mb-3">
+              <dt class="fw-normal text-body-secondary small">Notes</dt>
+              <dd class="mb-0">{{ ticket.notes }}</dd>
+            </div>
+            {% endif %}
+          </dl>
+          <hr>
+          <p class="text-body-secondary small mb-1">Estimated pickup</p>
+          <p class="fs-5 mb-0">
+            {% if ticket.status in ["ready", "claimed"] %}
+              Ready for pickup
+            {% else %}
+              About {{ ticket.eta_hours|round|int }} hours after drop-off
+            {% endif %}
+          </p>
+          <p class="text-body-secondary small mb-0">
+            {{ ticket.eta_hours|round|int }}-hour normal turnaround from drop-off.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# Right: stage and payment #}
+    <div class="col-md-5">
+      <div class="d-flex justify-content-between align-items-center">
+        <span class="text-uppercase text-body-secondary small">Current stage</span>
+        <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">{{ ticket.status|capitalize }}</span>
+      </div>
+
+      <ol class="list-unstyled my-3">
+        {% for s in statuses %}
+          <li class="py-1 {% if loop.index0 == current %}fw-semibold text-primary{% else %}text-body-secondary{% endif %}"
+              {% if loop.index0 == current %}aria-current="step"{% endif %}>
+            {% if loop.index0 < current %}
+              <span aria-hidden="true">&#10003;</span><span class="visually-hidden">Done:</span>
+            {% elif loop.index0 == current %}
+              <span aria-hidden="true">&#9679;</span>
+            {% else %}
+              <span aria-hidden="true">&#9675;</span>
+            {% endif %}
+            {{ s|capitalize }}
+          </li>
+        {% endfor %}
+      </ol>
+
+      {% if next_stage %}
+      {# Shown here on tablets and up; phones get the pinned bar below. #}
+            <form method="post" action="{{ url_for('staff_action', ticket_id=ticket.number, action='advance') }}" class="d-none d-md-block">
+        <input type="hidden" name="from" value="ticket">
+        <button type="submit" class="btn btn-primary btn-lg w-100">
+          Advance to {{ next_stage|capitalize }} &rarr;
+        </button>
+      </form>
+      <p class="text-body-secondary small mt-2 d-none d-md-block">One action moves this ticket to the next stage.</p>
+      {% endif %}
+
+      <hr>
+
+      <h2 class="h6 text-uppercase text-body-secondary">Payment</h2>
+      <div class="d-flex justify-content-between text-body-secondary small">
+        <span>{{ ticket.kilos }} kg &times; &#8369;{{ ticket.price_per_kilo }} / kg</span>
+        <span class="font-monospace">&#8369;{{ "%.2f"|format(ticket.total) }}</span>
+      </div>
+      <div class="d-flex justify-content-between align-items-baseline my-2">
+        <span class="fw-semibold">Total {{ "paid" if ticket.paid else "due" }}</span>
+        <span class="fs-3 ticket-number">&#8369;{{ "%.2f"|format(ticket.total) }}</span>
+      </div>
+      {% if not ticket.paid %}
+            <form method="post" action="{{ url_for('staff_action', ticket_id=ticket.number, action='pay') }}">
+        <input type="hidden" name="from" value="ticket">
+        <button type="submit" class="btn btn-outline-primary w-100">Mark as paid</button>
+      </form>
+      <p class="text-body-secondary small mt-2">Confirm payment has been collected before marking paid.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <p class="text-body-secondary small border-top pt-3 mt-4 mb-0">
+    Staff-only order details. Unknown ticket numbers return a 404 page.
+  </p>
+
+  {% if next_stage %}
+  {# Phone only: the most frequent action stays pinned at the bottom (thumb reach). #}
+  <div class="d-md-none pb-5 mb-5"></div>
+  <div class="d-md-none fixed-bottom bg-white border-top p-3">
+    <div class="d-flex justify-content-between align-items-center small mb-2">
+      <span class="text-uppercase text-body-secondary">Current stage</span>
+      <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">{{ ticket.status|capitalize }}</span>
+    </div>
+        <form method="post" action="{{ url_for('staff_action', ticket_id=ticket.number, action='advance') }}">
+      <input type="hidden" name="from" value="ticket">
+      <button type="submit" class="btn btn-primary w-100">
+        Advance to {{ next_stage|capitalize }} &rarr;
+      </button>
+    </form>
+  </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}New Order · CleanQ{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <p class="text-uppercase text-body-secondary small mb-1">Staff / Laundry operations</p>
+    <h1 class="h3 mb-1">New Order</h1>
+    <p class="text-body-secondary mb-4">A fresh load starts here. Add an order and issue a ticket.</p>
+
+    <form method="post" action="{{ url_for('join') }}" novalidate id="join-form">
+
+      {# Customer name #}
+      <div class="mb-3">
+        <label for="name" class="form-label">Customer name</label>
+        <input id="name" name="name" type="text" autocomplete="off" required maxlength="60"
+               class="form-control {% if errors.name %}is-invalid{% endif %}"
+               value="{{ form.get('name', '') }}"
+               {% if errors.name %}aria-describedby="name-error"{% endif %}>
+        {% if errors.name %}
+          <div id="name-error" class="invalid-feedback">{{ errors.name }}</div>
+        {% endif %}
+      </div>
+
+      {# Mobile number #}
+      <div class="mb-3">
+        <label for="phone" class="form-label">Mobile number</label>
+        <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="off" required
+               placeholder="0917 123 4567"
+               class="form-control {% if errors.phone %}is-invalid{% endif %}"
+               value="{{ form.get('phone', '') }}"
+               aria-describedby="phone-help{% if errors.phone %} phone-error{% endif %}">
+        <div id="phone-help" class="form-text">Double-check the number. Customers use it to find their tickets.</div>
+        {% if errors.phone %}
+          <div id="phone-error" class="invalid-feedback">{{ errors.phone }}</div>
+        {% endif %}
+      </div>
+
+      {# Service type #}
+      <fieldset class="mb-3" {% if errors.service_id %}aria-describedby="service-error"{% endif %}>
+        <legend class="form-label fs-6">Service type</legend>
+        {% for s in services %}
+          <input class="btn-check" type="radio" name="service_id" id="service-{{ s.id }}"
+                 value="{{ s.id }}" required
+                 {% if form.get('service_id') == s.id|string %}checked{% endif %}>
+          <label class="btn btn-outline-primary w-100 text-start d-flex justify-content-between align-items-center mb-2{% if errors.service_id %} border-danger{% endif %}"
+                 for="service-{{ s.id }}">
+            <span>
+              {{ s.name }}
+              <small class="d-block">{{ s.hours }} hour{{ "" if s.hours == 1 else "s" }} turnaround</small>
+            </span>
+            <span>&#8369;{{ s.price_per_kilo }} / kg</span>
+          </label>
+        {% endfor %}
+        {% if errors.service_id %}
+          <div id="service-error" class="invalid-feedback d-block">{{ errors.service_id }}</div>
+        {% endif %}
+      </fieldset>
+
+      <div class="row">
+        {# Weight #}
+        <div class="col-sm-6 mb-3">
+          <label for="kilos" class="form-label">Weight (kg)</label>
+          <input id="kilos" name="kilos" type="number" inputmode="decimal" step="0.1" min="0.1" max="50" required
+                 class="form-control {% if errors.kilos %}is-invalid{% endif %}"
+                 value="{{ form.get('kilos', '') }}"
+                 {% if errors.kilos %}aria-describedby="kilos-error"{% endif %}>
+          {% if errors.kilos %}
+            <div id="kilos-error" class="invalid-feedback">{{ errors.kilos }}</div>
+          {% endif %}
+        </div>
+
+        {# Payment status #}
+        <div class="col-sm-6 mb-3">
+          <label for="paid" class="form-label">Payment status</label>
+          <select id="paid" name="paid"
+                  class="form-select {% if errors.paid %}is-invalid{% endif %}"
+                  {% if errors.paid %}aria-describedby="paid-error"{% endif %}>
+            <option value="unpaid" {% if form.get('paid', 'unpaid') != 'paid' %}selected{% endif %}>Unpaid</option>
+            <option value="paid" {% if form.get('paid') == 'paid' %}selected{% endif %}>Paid</option>
+          </select>
+          {% if errors.paid %}
+            <div id="paid-error" class="invalid-feedback">{{ errors.paid }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {# Notes (optional) #}
+      <div class="mb-4">
+        <label for="notes" class="form-label">Notes <span class="text-body-secondary">(optional)</span></label>
+        <textarea id="notes" name="notes" rows="3" maxlength="200"
+                  class="form-control {% if errors.notes %}is-invalid{% endif %}"
+                  {% if errors.notes %}aria-describedby="notes-error"{% endif %}>{{ form.get('notes', '') }}</textarea>
+        {% if errors.notes %}
+          <div id="notes-error" class="invalid-feedback">{{ errors.notes }}</div>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg w-100">Create ticket</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket #{{ ticket.number }} · CleanQ{% endblock %}
+
+{% block content %}
+  {% set in_progress = ticket.status in ["received", "washing", "drying", "folding"] %}
+  {% set badge = {
+      'received': 'text-bg-secondary', 'washing': 'text-bg-primary',
+      'drying': 'text-bg-primary', 'folding': 'text-bg-primary',
+      'ready': 'text-bg-success', 'claimed': 'text-bg-dark', 'left': 'text-bg-danger'
+  }[ticket.status] %}
+
+    <h1 class="visually-hidden">My ticket status</h1>
+
+  <a class="small" href="{{ url_for('track', back=1) }}">&larr; Back to my tickets</a>
+
+  <div class="card mt-3">
+    <div class="card-body p-4">
+      <p class="mb-0 text-body-secondary">Your ticket number is</p>
+      <p class="display-1 fw-bold ticket-number text-primary mb-3">#{{ ticket.number }}</p>
+
+      <p class="text-uppercase text-body-secondary small mb-1">Service</p>
+      <p class="fs-4 mb-3">{{ ticket.service_name }}</p>
+
+      <div id="live-status" aria-live="polite">
+        <p class="text-uppercase text-body-secondary small mb-1">Current stage</p>
+        <p class="mb-1">
+          <span class="badge fs-6 {{ badge }}">{{ ticket.status|capitalize }}</span>
+        </p>
+        <p class="text-body-secondary small mb-3">
+          {% if ticket.status == "ready" %}
+            Ready for you to pick up.
+          {% elif ticket.status == "claimed" %}
+            Already picked up.
+          {% elif ticket.status == "left" %}
+            You left the queue. This ticket was cancelled.
+          {% else %}
+            Your order is being processed.
+          {% endif %}
+        </p>
+
+        {% if in_progress %}
+        <p class="text-uppercase text-body-secondary small mb-1">Estimated pickup</p>
+        <p class="fs-5 mb-3">About {{ ticket.eta_hours|round|int }} hours after drop-off</p>
+
+        <p class="fs-4 mb-0">
+          {% if ticket.ahead == 0 %}
+            <span class="fw-semibold text-primary">You're next!</span>
+          {% else %}
+            <span class="fw-semibold text-primary">{{ ticket.ahead }} ticket{{ "" if ticket.ahead == 1 else "s" }}</span> ahead of you
+          {% endif %}
+        </p>
+        <p class="text-body-secondary small mb-0">Counts earlier tickets for the same service that are still being processed.</p>
+        {% endif %}
+      </div>
+
+      {% if in_progress %}
+      <div id="leave-box">
+        <hr class="my-4">
+        <form method="post" action="{{ url_for('leave_queue', ticket_id=ticket.number) }}"
+              onsubmit="return confirm('Leave the queue and cancel ticket #{{ ticket.number }}?');">
+          <button type="submit" class="btn btn-outline-danger btn-sm">Leave the queue</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const statusUrl = "{{ url_for('track_ticket_status', ticket_id=ticket.number) }}";
+  const BADGE = {
+    received: "text-bg-secondary", washing: "text-bg-primary", drying: "text-bg-primary",
+    folding: "text-bg-primary", ready: "text-bg-success", claimed: "text-bg-dark", left: "text-bg-danger"
+  };
+  const MESSAGE = {
+    received: "Your order is being processed.", washing: "Your order is being processed.",
+    drying: "Your order is being processed.", folding: "Your order is being processed.",
+    ready: "Ready for you to pick up.", claimed: "Already picked up.",
+    left: "You left the queue. This ticket was cancelled."
+  };
+  const IN_PROGRESS = ["received", "washing", "drying", "folding"];
+  const ETA_HOURS = {{ ticket.eta_hours|round|int }};
+  let last = JSON.stringify({ status: "{{ ticket.status }}", ahead: {{ ticket.ahead }} });
+  let timer;
+
+  function render(data) {
+    const inProgress = IN_PROGRESS.includes(data.status);
+    const label = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+    let html = `
+      <p class="text-uppercase text-body-secondary small mb-1">Current stage</p>
+      <p class="mb-1"><span class="badge fs-6 ${BADGE[data.status]}">${label}</span></p>
+      <p class="text-body-secondary small mb-3">${MESSAGE[data.status]}</p>`;
+    if (inProgress) {
+      const n = data.ahead;
+      const position = n === 0
+        ? `<span class="fw-semibold text-primary">You're next!</span>`
+        : `<span class="fw-semibold text-primary">${n} ticket${n === 1 ? "" : "s"}</span> ahead of you`;
+      html += `
+        <p class="text-uppercase text-body-secondary small mb-1">Estimated pickup</p>
+        <p class="fs-5 mb-3">About ${ETA_HOURS} hours after drop-off</p>
+        <p class="fs-4 mb-0">${position}</p>
+        <p class="text-body-secondary small mb-0">Counts earlier tickets for the same service that are still being processed.</p>`;
+    }
+    document.getElementById("live-status").innerHTML = html;
+    const leaveBox = document.getElementById("leave-box");
+    if (leaveBox) leaveBox.hidden = !inProgress;
+  }
+
+  async function refreshStatus() {
+    try {
+      const res = await fetch(statusUrl);
+      if (!res.ok) { clearInterval(timer); return; }
+      const data = await res.json();
+      const now = JSON.stringify({ status: data.status, ahead: data.ahead });
+      if (now !== last) {          // only touch the page when something changed
+        last = now;
+        render(data);
+      }
+      if (!IN_PROGRESS.includes(data.status) && data.status !== "ready") {
+        clearInterval(timer);      // claimed or left: nothing more will change
+      }
+    } catch (err) {
+      console.warn("Could not refresh status", err);
+    }
+  }
+  timer = setInterval(refreshStatus, 10000);
+</script>
+{% endblock %}
