@@ -4,6 +4,10 @@ A laundry order queue and pickup tracker for small neighborhood laundry shops in
 
 Staff log orders and move them through stages. Customers enter their mobile number to see their own tickets, the current stage, the estimated pickup time and how many tickets are ahead of them.
 
+## Requirements
+
+The full list of what CleanQ must do, with priorities, MVP and out-of-scope items, is in [docs/requirements.md](docs/requirements.md).
+
 ## Features
 
 **Staff**
@@ -71,6 +75,7 @@ ccc181/
 │   └── js/
 │       └── main.js          # double-submit guard on New Order
 └── docs/
+    ├── requirements.md      # living requirements list
     ├── week1/
     │   └── proposal.md
     └── week3/
