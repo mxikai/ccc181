@@ -161,6 +161,9 @@ def join():
     except InvalidOperation:
         kilos = None
 
+    if kilos is not None and not kilos.is_finite():
+        kilos = None
+        
     errors = {}
     if not name:
         errors["name"] = "Enter the customer's name."
