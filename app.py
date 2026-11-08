@@ -4,13 +4,26 @@ Run it with:
     flask --app app run --debug
 then open http://127.0.0.1:5000
 """
+import os
 import re
 from datetime import date, datetime
+
+from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from flask_migrate import Migrate
+
+from models import Customer, Service, Staff, Ticket, db
+
+load_dotenv()
 
 app = Flask(__name__)
 # Needed so Flask can remember which mobile number a customer looked up.
-app.secret_key = "change-this-before-sharing"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
+app.config["SQLALCHEMY_ECHO"] = os.environ.get("SQLALCHEMY_ECHO") == "1"
+
+db.init_app(app)
+migrate = Migrate(app, db)
 
 # Services the shop offers. Price is per kilo; hours is the normal turnaround.
 SERVICES = [
