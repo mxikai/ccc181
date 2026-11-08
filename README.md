@@ -6,7 +6,19 @@ Staff log orders and move them through stages. Customers enter their mobile numb
 
 ## Requirements
 
-The full list of what CleanQ must do, with priorities, MVP and out-of-scope items, is in [docs/requirements.md](docs/requirements.md).
+The full list of what CleanQ must do is in [docs/requirements.md](docs/requirements.md).
+
+## Run it
+
+1. Copy `.env.example` to `.env` and set your own password.
+2. `docker compose up -d`
+3. `flask --app app db upgrade`
+4. `flask --app app seed`
+5. `flask --app app run --debug`
+
+## Known limits
+
+Staff pages (`/staff`, `/queue`, `/staff/services`) are open to everyone for now. 
 
 ## Features
 

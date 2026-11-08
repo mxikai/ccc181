@@ -6,7 +6,7 @@
 
 **Problem statement:** A student who drops off laundry needs a way to know when it will be ready without walking back to the shop, because the paper claim stub says nothing about progress and she has to ask in person or stay and wait.
 
-Status values: *Built (Week 3)*, *This week*, *Later*, *Dropped*. IDs are never reused or renumbered. These IDs replace the draft numbering in the Week 1 proposal.
+Status values: *Built (Week 3)*, *Built (Week 4)*, *This week*, *Later*, *Dropped*. IDs are never reused or renumbered. These IDs replace the draft numbering in the Week 1 proposal.
 
 ## Functional requirements
 
@@ -30,6 +30,7 @@ Status values: *Built (Week 3)*, *This week*, *Later*, *Dropped*. IDs are never 
 | FR-16 ★ | A staff member can see a list of all unpaid orders, including claimed ones. | Should | Yes | Later |
 | FR-17 | A staff member must log in before using any staff page. | Should | Yes | Later |
 | FR-18 | A staff member can correct the kilos or notes of an order after it is created. | Could | Yes | Later |
+| FR-19 | A staff member can permanently delete a ticket made by mistake, after a confirmation. | Could | Yes | Built (Week 4) |
 
 ## Non-functional requirements
 
