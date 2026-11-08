@@ -6,12 +6,13 @@ then open http://127.0.0.1:5000
 """
 import os
 import re
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from datetime import date, datetime
 
 from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from flask_migrate import Migrate
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from models import Customer, Service, Staff, Ticket, db
@@ -26,6 +27,13 @@ app.config["SQLALCHEMY_ECHO"] = os.environ.get("SQLALCHEMY_ECHO") == "1"
 
 db.init_app(app)
 migrate = Migrate(app, db)
+
+PH_TIME = timezone(timedelta(hours=8))  # Philippine time has no daylight saving
+
+@app.template_filter("local")
+def local_time(value):
+    """Show a database time in Philippine time, e.g. Oct 26, 08:01 AM."""
+    return value.astimezone(PH_TIME).strftime("%b %d, %I:%M %p") if value else ""
 
 @app.cli.command("seed")
 def seed():
@@ -78,31 +86,34 @@ def describe(t):
         "total": round(float(t.kilos * t.price_per_kilo), 2),
         "eta_hours": t.service.hours,
         "claimed_at": t.claimed_at,
+        "created_at": t.created_at,
     }
 
 # Statuses where the laundry is still being processed (the customer is "waiting").
 IN_PROGRESS = ("received", "washing", "drying", "folding")
 
 
-def tickets_ahead(ticket):
-    """Earlier tickets for the same service that are still being processed."""
-    return sum(
-        1 for t in TICKETS
-        if t["service_id"] == ticket["service_id"]
-        and t["number"] < ticket["number"]
-        and t["status"] in IN_PROGRESS
-    )
+def tickets_ahead(t):
+    """Count tickets still being processed for the same service that joined before t."""
+    stmt = (db.select(func.count())
+            .select_from(Ticket)
+            .where(Ticket.service_id == t.service_id,
+                   Ticket.status.in_(IN_PROGRESS),
+                   Ticket.created_at < t.created_at))
+    return db.session.scalar(stmt)
 
 
-def public_view(ticket):
+def public_view(t):
     """What a customer may see: no name, no mobile number, no price."""
-    full = describe(ticket)
     return {
-        "number": full["number"],
-        "service_name": full["service_name"],
-        "status": full["status"],
-        "eta_hours": full["eta_hours"],
-        "ahead": tickets_ahead(ticket),
+        "id": t.id,
+        "number": t.id,
+        "service_id": t.service_id,
+        "service_name": t.service.name,
+        "status": t.status,
+        "eta_hours": t.service.hours,
+        "created_at": t.created_at,
+        "ahead": tickets_ahead(t),
     }
 
 # ---------- Staff side ----------
@@ -194,25 +205,34 @@ def join():
 def staff_dashboard():
     # FR-01. Open to everyone for now (no login until a later week).
     service_id = request.args.get("service_id", type=int)
-    active = sorted(
-        (t for t in TICKETS if t["status"] not in ("claimed", "left")),
-        key=lambda t: t["number"],
-    )
-    # Star feature: how many tickets are waiting (still being processed) per service.
-    counts = {
-        s["id"]: sum(1 for t in active
-                     if t["service_id"] == s["id"] and t["status"] in IN_PROGRESS)
-        for s in SERVICES
-    }
-    queue = [describe(t) for t in active
-             if not service_id or t["service_id"] == service_id]
-        # Claim log: everything picked up today, newest first.
-    claimed_today = sorted(
-        (describe(t) for t in TICKETS
-         if t["status"] == "claimed" and t.get("claimed_at")
-         and t["claimed_at"].date() == date.today()),
-        key=lambda t: t["claimed_at"], reverse=True,
-    )
+
+    stmt = (db.select(Ticket)
+            .where(Ticket.status.not_in(("claimed", "left")))
+            .order_by(Ticket.created_at))
+    if service_id:
+        stmt = stmt.where(Ticket.service_id == service_id)
+    queue = [describe(t) for t in db.session.scalars(stmt).all()]
+
+    services = db.session.scalars(db.select(Service).order_by(Service.id)).all()
+
+    # How many tickets are waiting (still being processed) per service.
+    rows = db.session.execute(
+        db.select(Ticket.service_id, func.count())
+        .where(Ticket.status.in_(IN_PROGRESS))
+        .group_by(Ticket.service_id)
+    ).all()
+    by_service = {sid: n for sid, n in rows}
+    counts = {s.id: by_service.get(s.id, 0) for s in services}
+
+    # Claim log: everything picked up today (Philippine time), newest first.
+    start_of_day = datetime.now(PH_TIME).replace(hour=0, minute=0, second=0, microsecond=0)
+    claimed_rows = db.session.scalars(
+        db.select(Ticket)
+        .where(Ticket.status == "claimed", Ticket.claimed_at >= start_of_day)
+        .order_by(Ticket.claimed_at.desc())
+    ).all()
+    claimed_today = [describe(t) for t in claimed_rows]
+
     summary = {
         "orders": len(claimed_today),
         "kilos": round(sum(t["kilos"] for t in claimed_today), 1),
@@ -220,11 +240,10 @@ def staff_dashboard():
         "unpaid": sum(t["total"] for t in claimed_today if not t["paid"]),
     }
     return render_template(
-        "staff_dashboard.html", queue=queue, services=SERVICES, counts=counts,
+        "staff_dashboard.html", queue=queue, services=services, counts=counts,
         total_waiting=sum(counts.values()), selected=service_id, statuses=STATUSES,
         claimed_today=claimed_today, summary=summary,
     )
-
 
 def back_to_staff(ticket_id=None):
     """After an action, return to the page the staff member came from."""
@@ -280,25 +299,44 @@ def staff_action(ticket_id, action):
 @app.get("/queue")
 def queue_home():
     # The "Manage Queue" tab: open the oldest active ticket.
-    active = sorted(
-        (t for t in TICKETS if t["status"] not in ("claimed", "left")),
-        key=lambda t: t["number"],
+    first = db.session.scalar(
+        db.select(Ticket)
+        .where(Ticket.status.not_in(("claimed", "left")))
+        .order_by(Ticket.created_at)
+        .limit(1)
     )
-    if not active:
+    if first is None:
         flash("No active tickets to manage right now.", "info")
         return redirect(url_for("staff_dashboard"))
-    return redirect(url_for("ticket", ticket_id=active[0]["number"]))
+    return redirect(url_for("ticket", ticket_id=first.id))
 
-@app.route("/queue/<int:ticket_id>")
+
+@app.get("/queue/<int:ticket_id>")
 def ticket(ticket_id):
-    ticket_row = db.session.get(Ticket, ticket_id)
-    if ticket_row is None:
-        abort(404)
-    return render_template(
-        "ticket.html", ticket=describe(ticket_row), statuses=STATUSES
-    )
+    # FR-02: all the details live here. An unknown number gives a 404 page.
+    t = db.get_or_404(Ticket, ticket_id)
+    return render_template("ticket.html", ticket=describe(t), statuses=STATUSES)
     
 # ---------- Customer side ----------
+
+def tickets_for_phone(phone):
+    """All of one customer's tickets, newest first."""
+    return db.session.scalars(
+        db.select(Ticket).join(Customer)
+        .where(Customer.phone == phone)
+        .order_by(Ticket.created_at.desc())
+    ).all()
+
+
+def own_ticket(ticket_id, phone):
+    """A ticket, only if it belongs to the mobile number this customer looked up."""
+    if not phone:
+        return None
+    return db.session.scalar(
+        db.select(Ticket).join(Customer)
+        .where(Ticket.id == ticket_id, Customer.phone == phone)
+    )
+
 
 @app.route("/track")
 def track():
@@ -307,7 +345,7 @@ def track():
     if not raw:
         phone = session.get("phone")
         if request.args.get("back") and phone:
-            mine = [t for t in TICKETS if t["phone"] == phone]
+            mine = [public_view(t) for t in tickets_for_phone(phone)]
             return render_template("track.html", searched=True, error=None, tickets=mine)
         session.pop("phone", None)
         return render_template("track.html", searched=False, error=None, tickets=[])
@@ -320,7 +358,7 @@ def track():
         )
 
     session["phone"] = phone
-    mine = [t for t in TICKETS if t["phone"] == phone]
+    mine = [public_view(t) for t in tickets_for_phone(phone)]
     return render_template("track.html", searched=True, error=None, tickets=mine)
 
 
@@ -330,25 +368,21 @@ def track_ticket(ticket_id):
     phone = session.get("phone")
     if not phone:
         return redirect(url_for("track"))
-    ticket_data = next(
-        (t for t in TICKETS if t["number"] == ticket_id and t["phone"] == phone), None
-    )
-    if not ticket_data:
+    t = own_ticket(ticket_id, phone)
+    if t is None:
         abort(404)
     return render_template(
-        "track_ticket.html", ticket=public_view(ticket_data), statuses=STATUSES
+        "track_ticket.html", ticket=public_view(t), statuses=STATUSES
     )
+
 
 @app.get("/track/<int:ticket_id>/status.json")
 def track_ticket_status(ticket_id):
     # Same rule as the ticket page: only for a number this customer looked up.
-    phone = session.get("phone")
-    ticket_data = next(
-        (t for t in TICKETS if t["number"] == ticket_id and t["phone"] == phone), None
-    ) if phone else None
-    if ticket_data is None:
+    t = own_ticket(ticket_id, session.get("phone"))
+    if t is None:
         abort(404)
-    return {"status": ticket_data["status"], "ahead": tickets_ahead(ticket_data)}
+    return {"status": t.status, "ahead": tickets_ahead(t)}
 
 @app.post("/track/<int:ticket_id>/leave")
 def leave_queue(ticket_id):

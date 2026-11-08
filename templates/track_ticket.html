@@ -10,7 +10,7 @@
       'ready': 'text-bg-success', 'claimed': 'text-bg-dark', 'left': 'text-bg-danger'
   }[ticket.status] %}
 
-    <h1 class="visually-hidden">My ticket status</h1>
+  <h1 class="visually-hidden">My ticket status</h1>
 
   <a class="small" href="{{ url_for('track', back=1) }}">&larr; Back to my tickets</a>
 
@@ -20,7 +20,8 @@
       <p class="display-1 fw-bold ticket-number text-primary mb-3">#{{ ticket.number }}</p>
 
       <p class="text-uppercase text-body-secondary small mb-1">Service</p>
-      <p class="fs-4 mb-3">{{ ticket.service_name }}</p>
+      <p class="fs-4 mb-1">{{ ticket.service_name }}</p>
+      <p class="text-body-secondary small mb-3">Joined {{ ticket.created_at|local }}</p>
 
       <div id="live-status" aria-live="polite">
         <p class="text-uppercase text-body-secondary small mb-1">Current stage</p>

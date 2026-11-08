@@ -8,7 +8,7 @@
   <p class="text-body-secondary">Every load, one number. Select a ticket to manage its order.</p>
 
   {# Filter + waiting count per service #}
-    <nav class="filter-bar mb-2" aria-label="Filter by service">
+  <nav class="filter-bar mb-2" aria-label="Filter by service">
     <a href="{{ url_for('staff_dashboard') }}"
        class="{% if not selected %}active{% endif %}"
        {% if not selected %}aria-current="page"{% endif %}>All <span class="badge text-bg-light border">{{ total_waiting }}</span></a>
@@ -34,6 +34,7 @@
           <th scope="col">Ticket</th>
           <th scope="col">Service</th>
           <th scope="col">Status</th>
+          <th scope="col">Joined</th>
           <th scope="col">Actions</th>
         </tr>
       </thead>
@@ -49,6 +50,7 @@
             <span class="badge {{ 'text-bg-success' if t.status == 'ready' else 'text-bg-primary' if t.status != 'received' else 'text-bg-secondary' }}">{{ t.status|capitalize }}</span>
             {% if t.status == 'ready' %}<span class="small text-body-secondary d-block">Waiting for pickup</span>{% endif %}
           </td>
+          <td class="text-nowrap">{{ t.created_at|local }}</td>
           <td class="text-nowrap">
             <a class="btn btn-sm btn-outline-primary" href="{{ url_for('ticket', ticket_id=t.number) }}"
                aria-label="Manage ticket {{ t.number }}">Manage</a>
@@ -78,7 +80,7 @@
   </div>
   {% endif %}
 
-    <h2 class="h4 mt-5">Claimed today</h2>
+  <h2 class="h4 mt-5">Claimed today</h2>
   <div class="row g-3 mb-3">
     <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
       <div class="small text-body-secondary">Orders claimed</div>
@@ -116,7 +118,7 @@
           <td class="font-monospace">{{ t.kilos }}</td>
           <td class="font-monospace">&#8369;{{ "%.2f"|format(t.total) }}</td>
           <td><span class="badge {{ 'text-bg-success' if t.paid else 'text-bg-danger' }}">{{ 'Paid' if t.paid else 'Unpaid' }}</span></td>
-          <td class="text-nowrap">{{ t.claimed_at.strftime('%I:%M %p') }}</td>
+          <td class="text-nowrap">{{ t.claimed_at|local }}</td>
         </tr>
         {% endfor %}
       </tbody>
