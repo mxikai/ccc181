@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Services · CleanQ{% endblock %}
+
+{% block content %}
+  <p class="text-uppercase text-body-secondary small mb-1">Staff / Laundry operations</p>
+  <h1 class="h2">Manage services</h1>
+  <p class="text-body-secondary">Add a service, change its price or turnaround, or switch it off so it no longer appears on New Order. Old tickets keep the price they were charged.</p>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="h5">Add a service</h2>
+      <form method="post" action="{{ url_for('service_create') }}" class="row g-3">
+        <div class="col-12 col-md-6">
+          <label for="new-name" class="form-label">Service name</label>
+          <input id="new-name" name="name" type="text" maxlength="40" required class="form-control">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="new-price" class="form-label">Price per kilo (&#8369;)</label>
+          <input id="new-price" name="price_per_kilo" type="number" inputmode="decimal"
+                 step="0.01" min="0.01" max="9999" required class="form-control">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="new-hours" class="form-label">Turnaround (hours)</label>
+          <input id="new-hours" name="hours" type="number" inputmode="numeric"
+                 step="1" min="1" max="168" required class="form-control">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="new-order" class="form-label">Position (0 = first)</label>
+          <input id="new-order" name="sort_order" type="number" inputmode="numeric"
+                 step="1" min="0" max="999" value="0" class="form-control">
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary btn-lg w-100">Add service</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <h2 class="h5">All services</h2>
+  {% for s in services %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <h3 class="h6 mb-0">{{ s.name }}</h3>
+        <span class="text-end">
+          <span class="badge {{ 'text-bg-success' if s.is_active else 'text-bg-secondary' }}">{{ 'Active' if s.is_active else 'Switched off' }}</span>
+          <span class="small text-body-secondary d-block">{{ s.tickets|length }} ticket{{ '' if s.tickets|length == 1 else 's' }}</span>
+        </span>
+      </div>
+
+      <form method="post" action="{{ url_for('service_edit', service_id=s.id) }}" class="row g-3">
+        <div class="col-12 col-md-6">
+          <label for="name-{{ s.id }}" class="form-label">Service name</label>
+          <input id="name-{{ s.id }}" name="name" type="text" maxlength="40" required
+                 class="form-control" value="{{ s.name }}">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="price-{{ s.id }}" class="form-label">Price per kilo (&#8369;)</label>
+          <input id="price-{{ s.id }}" name="price_per_kilo" type="number" inputmode="decimal"
+                 step="0.01" min="0.01" max="9999" required class="form-control"
+                 value="{{ '%.2f'|format(s.price_per_kilo) }}">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="hours-{{ s.id }}" class="form-label">Turnaround (hours)</label>
+          <input id="hours-{{ s.id }}" name="hours" type="number" inputmode="numeric"
+                 step="1" min="1" max="168" required class="form-control" value="{{ s.hours }}">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="order-{{ s.id }}" class="form-label">Position (0 = first)</label>
+          <input id="order-{{ s.id }}" name="sort_order" type="number" inputmode="numeric"
+                 step="1" min="0" max="999" class="form-control" value="{{ s.sort_order }}">
+        </div>
+        <div class="col-6 col-md-5 d-flex align-items-end">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="active-{{ s.id }}"
+                   name="is_active" {% if s.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="active-{{ s.id }}">Active (shown on New Order)</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">Save changes</button>
+        </div>
+      </form>
+
+      <form method="post" action="{{ url_for('service_delete', service_id=s.id) }}" class="mt-2"
+            data-confirm="Delete the service {{ s.name }}? This cannot be undone.">
+        <button type="submit" class="btn btn-outline-danger">Delete service</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+{% endblock %}

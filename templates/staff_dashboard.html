@@ -63,10 +63,15 @@
               </button>
             </form>
             <form method="post" action="{{ url_for('staff_action', ticket_id=t.number, action='cancel') }}" class="d-inline"
-                  onsubmit="return confirm('Cancel ticket #{{ t.number }}?');">
+                  data-confirm="Cancel ticket {{ t.number }}? It stays in the records as left.">
               <input type="hidden" name="service_id" value="{{ selected or '' }}">
               <button type="submit" class="btn btn-sm btn-outline-danger"
                       aria-label="Cancel ticket {{ t.number }}">Cancel</button>
+            </form>
+            <form method="post" action="{{ url_for('delete_ticket', ticket_id=t.number) }}" class="d-inline"
+                  data-confirm="Delete ticket {{ t.number }}? This cannot be undone.">
+              <button type="submit" class="btn btn-sm btn-danger"
+                      aria-label="Delete ticket {{ t.number }} for good">Delete</button>
             </form>
           </td>
         </tr>

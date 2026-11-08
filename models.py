@@ -45,6 +45,7 @@ class Service(db.Model):
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true")
     )
+    sort_order: Mapped[int] = mapped_column(default=0, server_default=text("0"))
 
     tickets: Mapped[list["Ticket"]] = relationship(back_populates="service")
 

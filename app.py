@@ -125,16 +125,24 @@ def index():
 
 
 def all_services():
-    """Services that staff can pick on the New Order form."""
+    """Every service, switched on or off. Used by staff pages."""
     return db.session.scalars(
-        db.select(Service).where(Service.is_active).order_by(Service.id)
+        db.select(Service).order_by(Service.sort_order, Service.id)
+    ).all()
+
+
+def active_services():
+    """Only switched-on services. Used by the New Order form."""
+    return db.session.scalars(
+        db.select(Service).where(Service.is_active)
+        .order_by(Service.sort_order, Service.id)
     ).all()
 
 
 @app.get("/join")
 def join_form():
     # Show an empty order form.
-    return render_template("join.html", services=all_services(), form={}, errors={})
+    return render_template("join.html", services=active_services(), form={}, errors={})
 
 
 @app.post("/join")
@@ -172,7 +180,7 @@ def join():
     if errors:
         flash("Please fix the highlighted fields.", "danger")
         return render_template(
-            "join.html", services=all_services(), form=form, errors=errors
+            "join.html", services=active_services(), form=form, errors=errors
         ), 400
 
     # Reuse the customer if this mobile number is already in the database.
@@ -195,7 +203,7 @@ def join():
         db.session.rollback()
         flash("Something went wrong saving the ticket. Please try again.", "danger")
         return render_template(
-            "join.html", services=all_services(), form=form, errors={}
+            "join.html", services=active_services(), form=form, errors={}
         ), 409
 
     flash(f"Ticket #{ticket_row.id} created for {customer.name}.", "success")
@@ -213,7 +221,7 @@ def staff_dashboard():
         stmt = stmt.where(Ticket.service_id == service_id)
     queue = [describe(t) for t in db.session.scalars(stmt).all()]
 
-    services = db.session.scalars(db.select(Service).order_by(Service.id)).all()
+    services = all_services()
 
     # How many tickets are waiting (still being processed) per service.
     rows = db.session.execute(
@@ -255,46 +263,139 @@ def back_to_staff(ticket_id=None):
 
 @app.post("/staff/call-next")
 def call_next():
-    # Start the first ticket that is still only "received" (optionally for one service).
+    # Start the oldest ticket that is still only "received" (optionally for one service).
     service_id = request.form.get("service_id", type=int)
-    first = next(
-        (t for t in sorted(TICKETS, key=lambda t: t["number"])
-         if t["status"] == "received"
-         and (not service_id or t["service_id"] == service_id)),
-        None,
-    )
+    stmt = (db.select(Ticket).where(Ticket.status == "received")
+            .order_by(Ticket.created_at).limit(1))
+    if service_id:
+        stmt = stmt.where(Ticket.service_id == service_id)
+    first = db.session.scalar(stmt)
+
     if first is None:
         flash("No one is waiting to be started.", "info")
     else:
-        first["status"] = "washing"
-        flash(f"Ticket #{first['number']} moved to washing.", "info")
+        first.status = "washing"
+        db.session.commit()
+        flash(f"Ticket #{first.id} moved to washing.", "info")
     return back_to_staff()
 
 
 @app.post("/staff/tickets/<int:ticket_id>/<action>")
 def staff_action(ticket_id, action):
-    t = next((t for t in TICKETS if t["number"] == ticket_id), None)
-    if t is None or action not in ("advance", "cancel", "pay"):
+    if action not in ("advance", "cancel", "pay"):
         abort(404)
+    t = db.get_or_404(Ticket, ticket_id)
 
     if action == "pay":
-        t["paid"] = True
+        t.paid = True
+        db.session.commit()
         flash(f"Ticket #{ticket_id} marked as paid.", "success")
-    elif t["status"] in ("claimed", "left"):
+    elif t.status in ("claimed", "left"):
         flash(f"Ticket #{ticket_id} is already closed.", "warning")
     elif action == "advance":
-        t["status"] = STATUSES[STATUSES.index(t["status"]) + 1]
-        if t["status"] == "claimed":
-            t["claimed_at"] = datetime.now()
+        t.status = STATUSES[STATUSES.index(t.status) + 1]
+        if t.status == "ready":
+            t.ready_at = func.now()      # the database fills in the time
+        elif t.status == "claimed":
+            t.claimed_at = func.now()
+        db.session.commit()
+        if t.status == "claimed":
             flash(f"Ticket #{ticket_id} claimed.", "success")
-            if not t["paid"]:
+            if not t.paid:
                 flash(f"Ticket #{ticket_id} was claimed but is still unpaid.", "warning")
         else:
-            flash(f"Ticket #{ticket_id} moved to {t['status']}.", "info")
-    else:  # cancel
-        t["status"] = "left"
+            flash(f"Ticket #{ticket_id} moved to {t.status}.", "info")
+    else:  # cancel: a soft delete, the row stays for reports
+        t.status = "left"
+        db.session.commit()
         flash(f"Ticket #{ticket_id} cancelled.", "info")
     return back_to_staff(ticket_id)
+
+
+@app.post("/staff/tickets/<int:ticket_id>/delete")
+def delete_ticket(ticket_id):
+    # Hard delete: for a test ticket or one made by mistake. The row is gone for good.
+    t = db.get_or_404(Ticket, ticket_id)
+    db.session.delete(t)
+    db.session.commit()
+    flash(f"Ticket #{ticket_id} was deleted.", "warning")
+    return redirect(url_for("staff_dashboard"))
+
+def parse_service_form(form):
+    """Check the service fields. Returns (values, error message)."""
+    name = " ".join(form.get("name", "").split())
+    hours = form.get("hours", type=int)
+    sort_order = form.get("sort_order", default=0, type=int)
+    try:
+        price = Decimal(form.get("price_per_kilo", "")).quantize(Decimal("0.01"))
+    except InvalidOperation:
+        price = None
+
+    if not name or len(name) > 40:
+        return None, "Enter a name of up to 40 characters."
+    if price is None or not (Decimal("0") < price <= Decimal("9999")):
+        return None, "Enter a price per kilo between 0.01 and 9999."
+    if hours is None or not (1 <= hours <= 168):
+        return None, "Enter a turnaround of 1 to 168 hours."
+    if not (0 <= sort_order <= 999):
+        return None, "Enter a position between 0 and 999."
+    return {"name": name, "price_per_kilo": price,
+            "hours": hours, "sort_order": sort_order}, None
+
+
+@app.get("/staff/services")
+def services_list():
+    return render_template("services.html", services=all_services())
+
+
+@app.post("/staff/services")
+def service_create():
+    values, error = parse_service_form(request.form)
+    if error:
+        flash(error, "danger")
+        return redirect(url_for("services_list"))
+    db.session.add(Service(**values))
+    try:
+        db.session.commit()
+        flash(f"Service “{values['name']}” added.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"A service named “{values['name']}” already exists.", "danger")
+    return redirect(url_for("services_list"))
+
+
+@app.post("/staff/services/<int:service_id>/edit")
+def service_edit(service_id):
+    s = db.get_or_404(Service, service_id)
+    values, error = parse_service_form(request.form)
+    if error:
+        flash(error, "danger")
+        return redirect(url_for("services_list"))
+    s.name = values["name"]
+    s.price_per_kilo = values["price_per_kilo"]
+    s.hours = values["hours"]
+    s.sort_order = values["sort_order"]
+    # An unticked checkbox is not sent at all.
+    s.is_active = request.form.get("is_active") == "on"
+    try:
+        db.session.commit()
+        flash(f"Service “{values['name']}” saved.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"A service named “{values['name']}” already exists.", "danger")
+    return redirect(url_for("services_list"))
+
+
+@app.post("/staff/services/<int:service_id>/delete")
+def service_delete(service_id):
+    s = db.get_or_404(Service, service_id)
+    if s.tickets:
+        flash(f"“{s.name}” has tickets, so it cannot be deleted. Turn it off instead.", "danger")
+        return redirect(url_for("services_list"))
+    db.session.delete(s)
+    db.session.commit()
+    flash(f"Service “{s.name}” deleted.", "warning")
+    return redirect(url_for("services_list"))
 
 @app.get("/queue")
 def queue_home():
@@ -390,13 +491,12 @@ def leave_queue(ticket_id):
     phone = session.get("phone")
     if not phone:
         return redirect(url_for("track"))
-    ticket_data = next(
-        (t for t in TICKETS if t["number"] == ticket_id and t["phone"] == phone), None
-    )
-    if not ticket_data:
+    t = own_ticket(ticket_id, phone)
+    if t is None:
         abort(404)
-    if ticket_data["status"] in IN_PROGRESS:
-        ticket_data["status"] = "left"
+    if t.status in IN_PROGRESS:
+        t.status = "left"  # soft delete: the row stays for reports
+        db.session.commit()
         flash(f"You left the queue. Ticket #{ticket_id} was cancelled.", "success")
     else:
         flash("This ticket can no longer be cancelled.", "warning")
