@@ -25,6 +25,22 @@ app.config["SQLALCHEMY_ECHO"] = os.environ.get("SQLALCHEMY_ECHO") == "1"
 db.init_app(app)
 migrate = Migrate(app, db)
 
+@app.cli.command("seed")
+def seed():
+    """Add the starting services if they are not there yet."""
+    starting = [
+        ("Wash, dry & fold", 65, 3),
+        ("Wash only", 35, 2),
+        ("Dry only", 30, 1),
+        ("Comforter / bulky", 100, 6),
+    ]
+    for name, price, hours in starting:
+        exists = db.session.scalar(db.select(Service).filter_by(name=name))
+        if exists is None:
+            db.session.add(Service(name=name, price_per_kilo=price, hours=hours))
+    db.session.commit()
+    print("Services are ready.")
+
 # Services the shop offers. Price is per kilo; hours is the normal turnaround.
 SERVICES = [
     {"id": 1, "name": "Wash, dry & fold", "price_per_kilo": 65, "hours": 3},
