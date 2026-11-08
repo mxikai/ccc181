@@ -69,33 +69,52 @@ Every action that changes data uses POST, never a plain link.
 
 ```
 ccc181/
-├── app.py                   # routes, sample data and helpers
+├── app.py                   # routes, helpers and the seed command
+├── models.py                # SQLAlchemy models (customers, staff, services, tickets)
+├── compose.yaml             # PostgreSQL 17 in Docker
 ├── requirements.txt
-├── .gitignore               # keeps .venv and __pycache__ out of Git
+├── .env.example             # variable names only; copy to .env and set your own values
+├── .gitignore               # keeps .env, .venv and __pycache__ out of Git
 ├── README.md
+├── migrations/
+│   ├── alembic.ini
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions/
+│       ├── dbaed13c4eba_initial_tables.py
+│       └── 4790d08730d0_add_services_sort_order.py
 ├── templates/
 │   ├── base.html            # layout, navbar, flash messages, skip link
 │   ├── index.html           # welcome page
 │   ├── join.html            # New Order form
 │   ├── staff_dashboard.html # staff Dashboard
 │   ├── ticket.html          # Manage Queue (staff)
+│   ├── services.html        # Manage services (staff)
 │   ├── track.html           # customer lookup and ticket list
 │   └── track_ticket.html    # customer ticket page
 ├── static/
 │   ├── css/
 │   │   └── style.css
 │   └── js/
-│       └── main.js          # double-submit guard on New Order
+│       └── main.js          # double-submit guard and confirm dialogs
 └── docs/
     ├── requirements.md      # living requirements list
     ├── week1/
     │   └── proposal.md
-    └── week3/
-        ├── personas.md
-        ├── feedback.md      # wireframe self-review
-        ├── accessibility.md
-        ├── usability-test.md
+    ├── week3/
+    │   ├── personas.md
+    │   ├── feedback.md      # wireframe self-review
+    │   ├── accessibility.md
+    │   ├── usability-test.md
+    │   ├── report.md
+    │   ├── screenshots/     # before/after, persona images
+    │   └── wireframes/      # wireframe images and descriptions
+    └── week4/
+        ├── schema.md        # nouns, tables, constraints, ERD, normalization
+        ├── erd.png
+        ├── schema-review.md
+        ├── validation.md    # three-layer validation tests
+        ├── persistence.md   # restart test and rebuild from scratch
         ├── report.md
-        ├── screenshots/     # before/after, persona images
-        └── wireframes/      # wireframe images and descriptions
+        └── screenshots/
 ```
