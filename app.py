@@ -6,11 +6,13 @@ then open http://127.0.0.1:5000
 """
 import os
 import re
+from decimal import Decimal, InvalidOperation
 from datetime import date, datetime
 
 from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from flask_migrate import Migrate
+from sqlalchemy.exc import IntegrityError
 
 from models import Customer, Service, Staff, Ticket, db
 
@@ -41,33 +43,8 @@ def seed():
     db.session.commit()
     print("Services are ready.")
 
-# Services the shop offers. Price is per kilo; hours is the normal turnaround.
-SERVICES = [
-    {"id": 1, "name": "Wash, dry & fold", "price_per_kilo": 65, "hours": 3},
-    {"id": 2, "name": "Wash only", "price_per_kilo": 35, "hours": 2},
-    {"id": 3, "name": "Dry only", "price_per_kilo": 30, "hours": 1},
-    {"id": 4, "name": "Comforter / bulky", "price_per_kilo": 100, "hours": 6},
-]
-
 # The order moves through these statuses, one tap at a time.
 STATUSES = ["received", "washing", "drying", "folding", "ready", "claimed"]
-
-# Each ticket: number, name, phone, service_id, kilos, notes, paid, status
-TICKETS = [
-    {"number": 1, "name": "Ana Reyes", "phone": "09171234567", "service_id": 1,
-     "kilos": 5.0, "notes": "No fabcon", "paid": False, "status": "washing"},
-    {"number": 2, "name": "Ben Santos", "phone": "09287654321", "service_id": 4,
-     "kilos": 3.5, "notes": "Separate whites", "paid": True, "status": "received"},
-    {"number": 3, "name": "Ana Reyes", "phone": "09171234567", "service_id": 2,
-     "kilos": 2.0, "notes": "", "paid": True, "status": "ready"},
-        {"number": 4, "name": "Carla Cruz", "phone": "09451112222", "service_id": 3,
-     "kilos": 4.0, "notes": "", "paid": False, "status": "claimed", "claimed_at": datetime.now()},
-]
-
-
-def get_service(service_id):
-    return next((s for s in SERVICES if s["id"] == service_id), None)
-
 
 def normalize_phone(raw):
     """Turn '+63 917 123 4567' or '0917-123-4567' into '09171234567'.
@@ -84,17 +61,24 @@ def normalize_phone(raw):
     return None
 
 
-def describe(ticket):
-    """Return a copy of the ticket with the service name, total price and ETA filled in."""
-    service = get_service(ticket["service_id"])
+def describe(t):
+    """Return a dict with the ticket's customer, service, total price and ETA filled in."""
     return {
-        **ticket,
-        "service_name": service["name"],
-        "price_per_kilo": service["price_per_kilo"],
-        "total": round(ticket["kilos"] * service["price_per_kilo"], 2),
-        "eta_hours": service["hours"],
+        "id": t.id,
+        "number": t.id,
+        "name": t.customer.name,
+        "phone": t.customer.phone,
+        "service_id": t.service_id,
+        "service_name": t.service.name,
+        "kilos": float(t.kilos),
+        "notes": t.notes,
+        "paid": t.paid,
+        "status": t.status,
+        "price_per_kilo": float(t.price_per_kilo),
+        "total": round(float(t.kilos * t.price_per_kilo), 2),
+        "eta_hours": t.service.hours,
+        "claimed_at": t.claimed_at,
     }
-
 
 # Statuses where the laundry is still being processed (the customer is "waiting").
 IN_PROGRESS = ("received", "washing", "drying", "folding")
@@ -129,26 +113,33 @@ def index():
     return render_template("index.html")
 
 
+def all_services():
+    """Services that staff can pick on the New Order form."""
+    return db.session.scalars(
+        db.select(Service).where(Service.is_active).order_by(Service.id)
+    ).all()
+
+
 @app.get("/join")
 def join_form():
     # Show an empty order form.
-    return render_template("join.html", services=SERVICES, form={}, errors={})
+    return render_template("join.html", services=all_services(), form={}, errors={})
 
 
 @app.post("/join")
 def join():
-    # Handle the submitted form. Never trust the input: check every field here,
-    # even though the browser may have checked it already.
+    # Never trust the input: check every field here, even though the browser may have too.
     form = request.form
     name = " ".join(form.get("name", "").split())
     phone = normalize_phone(form.get("phone", ""))
     service_id = form.get("service_id", type=int)
+    service = db.session.get(Service, service_id) if service_id else None
     paid = form.get("paid", "unpaid")
     notes = form.get("notes", "").strip()
 
     try:
-        kilos = round(float(form.get("kilos", "")), 2)
-    except ValueError:
+        kilos = Decimal(form.get("kilos", "")).quantize(Decimal("0.01"))
+    except InvalidOperation:
         kilos = None
 
     errors = {}
@@ -158,9 +149,9 @@ def join():
         errors["name"] = "Keep the name to 60 characters or fewer."
     if phone is None:
         errors["phone"] = "Enter a valid mobile number, like 0917 123 4567."
-    if service_id not in [s["id"] for s in SERVICES]:
+    if service is None or not service.is_active:
         errors["service_id"] = "Choose a service."
-    if kilos is None or not (0.1 <= kilos <= 50):
+    if kilos is None or not (Decimal("0.1") <= kilos <= Decimal("50")):
         errors["kilos"] = "Enter the weight in kilos, between 0.1 and 50."
     if paid not in ("paid", "unpaid"):
         errors["paid"] = "Choose paid or unpaid."
@@ -170,18 +161,34 @@ def join():
     if errors:
         flash("Please fix the highlighted fields.", "danger")
         return render_template(
-            "join.html", services=SERVICES, form=form, errors=errors
+            "join.html", services=all_services(), form=form, errors=errors
         ), 400
 
-    number = max((t["number"] for t in TICKETS), default=0) + 1
-    TICKETS.append({
-        "number": number, "name": name, "phone": phone,
-        "service_id": service_id, "kilos": kilos, "notes": notes,
-        "paid": paid == "paid", "status": "received",
-    })
-    flash(f"Ticket #{number} created for {name}.", "success")
-    return redirect(url_for("ticket", ticket_id=number))
+    # Reuse the customer if this mobile number is already in the database.
+    customer = db.session.scalar(db.select(Customer).filter_by(phone=phone))
+    if customer is None:
+        customer = Customer(name=name, phone=phone)
 
+    ticket_row = Ticket(
+        customer=customer,
+        service=service,
+        kilos=kilos,
+        price_per_kilo=service.price_per_kilo,  # price at the time of the order
+        notes=notes,
+        paid=(paid == "paid"),
+    )
+    db.session.add(ticket_row)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Something went wrong saving the ticket. Please try again.", "danger")
+        return render_template(
+            "join.html", services=all_services(), form=form, errors={}
+        ), 409
+
+    flash(f"Ticket #{ticket_row.id} created for {customer.name}.", "success")
+    return redirect(url_for("ticket", ticket_id=ticket_row.id))
 
 @app.get("/staff")
 def staff_dashboard():
@@ -284,12 +291,11 @@ def queue_home():
 
 @app.route("/queue/<int:ticket_id>")
 def ticket(ticket_id):
-    # FR-02: all the details live here.
-    ticket_data = next((t for t in TICKETS if t["number"] == ticket_id), None)
-    if not ticket_data:
+    ticket_row = db.session.get(Ticket, ticket_id)
+    if ticket_row is None:
         abort(404)
     return render_template(
-        "ticket.html", ticket=describe(ticket_data), statuses=STATUSES
+        "ticket.html", ticket=describe(ticket_row), statuses=STATUSES
     )
     
 # ---------- Customer side ----------
